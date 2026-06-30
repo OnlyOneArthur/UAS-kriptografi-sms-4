@@ -21,34 +21,54 @@ def clear():
 
 def header(text):
     clear()
-    print(f"{BOLD}{MAGENTA}")
     with open("header_art.txt") as f:
-        print(f.read())
-    print(f"{RESET}")
-    print(f"{BOLD}{CYAN}╔{'\u2550'*74}╗{RESET}")
-    print(f"{BOLD}{WHITE}║ {text.center(72)} ║{RESET}")
-    print(f"{BOLD}{CYAN}╚{'\u2550'*74}╝{RESET}\n")
+        art_lines = f.read().splitlines()
+
+    # Build the title box lines (left column)
+    title_width = 40
+    box_lines = [
+        f"{BOLD}{CYAN}\u2554{'\u2550' * title_width}\u2557{RESET}",
+        f"{BOLD}{WHITE}\u2551 {text.center(title_width - 2)} \u2551{RESET}",
+        f"{BOLD}{CYAN}\u255a{'\u2550' * title_width}\u255d{RESET}",
+    ]
+
+    # Pad the shorter column so both have the same number of rows
+    max_rows = max(len(art_lines), len(box_lines))
+    # Center the title box vertically relative to the ASCII art
+    box_top_pad = (max_rows - len(box_lines)) // 2
+    padded_box = (
+        [" " * (title_width + 2)] * box_top_pad
+        + box_lines
+        + [" " * (title_width + 2)] * (max_rows - len(box_lines) - box_top_pad)
+    )
+    padded_art = art_lines + [""] * (max_rows - len(art_lines))
+
+    # Print side-by-side: title box on the left, ASCII art on the right
+    gap = "   "
+    for left, right in zip(padded_box, padded_art):
+        print(f"{left}{gap}{BOLD}{MAGENTA}{right}{RESET}")
+    print()
 
 def section(text):
-    print(f"\n{BOLD}{BLUE}┌─ {text} {'\u2500'*(68-len(text))}┐{RESET}")
+    print(f"\n{BOLD}{BLUE}\u250c\u2500 {text} {'\u2500'*(68-len(text))}\u2510{RESET}")
 
 def step(text):
-    print(f"{CYAN}│ \u25b6 {text}{RESET}")
+    print(f"{CYAN}\u2502 \u25b6 {text}{RESET}")
 
 def ok(text):
-    print(f"{GREEN}│ \u2713 {text}{RESET}")
+    print(f"{GREEN}\u2502 \u2713 {text}{RESET}")
 
 def warn(text):
-    print(f"{YELLOW}│ ! {text}{RESET}")
+    print(f"{YELLOW}\u2502 ! {text}{RESET}")
 
 def err(text):
-    print(f"{RED}│ \u2717 {text}{RESET}")
+    print(f"{RED}\u2502 \u2717 {text}{RESET}")
 
 def info(text):
-    print(f"{BLUE}│ i {text}{RESET}")
+    print(f"{BLUE}\u2502 i {text}{RESET}")
 
 def close_box():
-    print(f"{BOLD}{BLUE}└{'\u2500'*74}┘{RESET}")
+    print(f"{BOLD}{BLUE}\u2514{'\u2500'*74}\u2518{RESET}")
 
 def get_fp(cert):
     return cert.fingerprint(hashes.SHA256()).hex()[:10].upper()
