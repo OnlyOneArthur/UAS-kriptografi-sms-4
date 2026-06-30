@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
 import datetime
-
-
-def header(text):
-    clear()
-    print(f"{BOLD}{MAGENTA}")
-    with open("header_art.txt") as f:
-        print(f.read())
-    print(f"{RESET}")
-    print(f"{BOLD}{CYAN}╔{'═' * 74}╗{RESET}")
-    print(f"{BOLD}{WHITE}║ {text.center(72)} ║{RESET}")
-    print(f"{BOLD}{CYAN}╚{'═' * 74}╝{RESET}\n")
-
-
 import os
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -29,58 +16,42 @@ RED = "\033[31m"
 MAGENTA = "\033[35m"
 WHITE = "\033[37m"
 
-
 def clear():
-    os.system("clear" if os.name == "posix" else "cls")
-
+    os.system('clear' if os.name == 'posix' else 'cls')
 
 def header(text):
     clear()
     print(f"{BOLD}{MAGENTA}")
-    print("      .--.      ")
-    print("     /    \\     ")
-    print("    | .--. |    ")
-    print("    | |  | |    ")
-    print("    | '--' |    ")
-    print("     \\    /     ")
-    print("      '--'      ")
+    with open("header_art.txt") as f:
+        print(f.read())
     print(f"{RESET}")
-    print(f"{BOLD}{CYAN}╔{'\u2550' * 74}╗{RESET}")
+    print(f"{BOLD}{CYAN}╔{'\u2550'*74}╗{RESET}")
     print(f"{BOLD}{WHITE}║ {text.center(72)} ║{RESET}")
-    print(f"{BOLD}{CYAN}╚{'\u2550' * 74}╝{RESET}\n")
-
+    print(f"{BOLD}{CYAN}╚{'\u2550'*74}╝{RESET}\n")
 
 def section(text):
-    print(f"\n{BOLD}{BLUE}┌─ {text} {'\u2500' * (68 - len(text))}┐{RESET}")
-
+    print(f"\n{BOLD}{BLUE}┌─ {text} {'\u2500'*(68-len(text))}┐{RESET}")
 
 def step(text):
     print(f"{CYAN}│ \u25b6 {text}{RESET}")
 
-
 def ok(text):
     print(f"{GREEN}│ \u2713 {text}{RESET}")
-
 
 def warn(text):
     print(f"{YELLOW}│ ! {text}{RESET}")
 
-
 def err(text):
     print(f"{RED}│ \u2717 {text}{RESET}")
-
 
 def info(text):
     print(f"{BLUE}│ i {text}{RESET}")
 
-
 def close_box():
-    print(f"{BOLD}{BLUE}└{'\u2500' * 74}┘{RESET}")
-
+    print(f"{BOLD}{BLUE}└{'\u2500'*74}┘{RESET}")
 
 def get_fp(cert):
     return cert.fingerprint(hashes.SHA256()).hex()[:10].upper()
-
 
 class CA:
     def __init__(self):
@@ -93,44 +64,18 @@ class CA:
     def _root(self):
         n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "UAS-CA")])
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        return (
-            x509.CertificateBuilder()
-            .subject_name(n)
-            .issuer_name(n)
-            .public_key(self.pub)
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(now)
-            .not_valid_after(now + datetime.timedelta(days=3650))
-            .add_extension(x509.BasicConstraints(ca=True, path_length=None), True)
-            .sign(self.priv, hashes.SHA256())
-        )
+        return x509.CertificateBuilder().subject_name(n).issuer_name(n).public_key(self.pub).serial_number(x509.random_serial_number()).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=3650)).add_extension(x509.BasicConstraints(ca=True, path_length=None), True).sign(self.priv, hashes.SHA256())
 
     def issue(self, uid, pub):
         n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, uid)])
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        c = (
-            x509.CertificateBuilder()
-            .subject_name(n)
-            .issuer_name(self.cert.subject)
-            .public_key(pub)
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(now)
-            .not_valid_after(now + datetime.timedelta(days=365))
-            .add_extension(
-                x509.KeyUsage(
-                    True, True, True, False, False, False, False, False, False
-                ),
-                True,
-            )
-            .sign(self.priv, hashes.SHA256())
-        )
+        c = x509.CertificateBuilder().subject_name(n).issuer_name(self.cert.subject).public_key(pub).serial_number(x509.random_serial_number()).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=365)).add_extension(x509.KeyUsage(True, True, True, False, False, False, False, False, False), True).sign(self.priv, hashes.SHA256())
         self.repo[uid] = c
         return c
 
     def pubkey(self, uid):
         c = self.repo.get(uid)
         return c.public_key() if c else None
-
 
 class RA:
     def __init__(self, ca):
@@ -149,7 +94,6 @@ class RA:
             return self.ca.issue(uid, pub)
         return None
 
-
 class Cust:
     def __init__(self, uid):
         self.id = uid
@@ -159,52 +103,26 @@ class Cust:
 
     def ask_cert(self, ra):
         step(f"{self.id} \u2192 sending request to RA")
-        self.cert = ra.ask(
-            self.id, {"nama": self.id, "email": f"{self.id}@kripto.id"}, self.pub
-        )
+        self.cert = ra.ask(self.id, {"nama": self.id, "email": f"{self.id}@kripto.id"}, self.pub)
         if self.cert:
             ok(f"{self.id} got certificate from CA")
         return self.cert
 
     def sign(self, m):
-        return self.priv.sign(
-            m,
-            padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH),
-            hashes.SHA256(),
-        )
+        return self.priv.sign(m, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
 
     def verify(self, m, s, p):
         try:
-            p.verify(
-                s,
-                m,
-                padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH),
-                hashes.SHA256(),
-            )
+            p.verify(s, m, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
             return True
         except:
             return False
 
     def enc(self, m, p):
-        return p.encrypt(
-            m,
-            padding.OAEP(
-                padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None,
-            ),
-        )
+        return p.encrypt(m, padding.OAEP(padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
 
     def dec(self, c):
-        return self.priv.decrypt(
-            c,
-            padding.OAEP(
-                padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None,
-            ),
-        )
-
+        return self.priv.decrypt(c, padding.OAEP(padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
 
 class Sim:
     def __init__(self):
@@ -253,11 +171,9 @@ class Sim:
             warn("No users yet")
             return
         print(f"  User    Status     Fingerprint")
-        print("  " + "-" * 50)
+        print("  " + "-"*50)
         for user_id, c in self.c.items():
-            print(
-                f"  {user_id:<6}  {'\u2713 Trusted' if c.cert else 'Pending'}   {get_fp(c.cert) if c.cert else 'N/A'}"
-            )
+            print(f"  {user_id:<6}  {'\u2713 Trusted' if c.cert else 'Pending'}   {get_fp(c.cert) if c.cert else 'N/A'}")
         close_box()
 
     def secret(self):
@@ -401,7 +317,6 @@ class Sim:
             else:
                 err("Invalid")
             input("\nEnter to menu...")
-
 
 if __name__ == "__main__":
     Sim().menu()
