@@ -1,80 +1,93 @@
-# UAS Kriptografi - Simulasi Public Key Infrastructure (PKI) dengan Roleplay
+# UAS Kriptografi - Public Key Infrastructure Simulation
 
-**Kelompok Paling Stand Out** | Full Terminal Demo | Real Cryptography (RSA + X.509)
+Educational Role-Play Tool for Certificate Authority, Registration Authority, and Custodians
 
-## Point UAS Ini Sebenernya Ngapain? (Penjelasan Singkat)
+## Overview
 
-UAS ini tugas **berkelompok dengan roleplay + dokumentasi lengkap** tentang **Public Key Infrastructure (PKI)**.
+This simulation demonstrates core Public Key Infrastructure (PKI) concepts through an interactive, role-based scenario. It uses real cryptographic primitives (RSA-2048, X.509 v3 certificates, RSA-OAEP encryption, and RSASSA-PSS signatures) to provide an authentic learning experience.
 
-### Tujuan Utama:
-- Paham konsep dasar PKI secara **praktis**, bukan cuma hafal teori.
-- Demonstrasikan alur lengkap:
-  1. **CA (Certificate Authority)**: Buat root keypair, self-sign certificate, terbitkan sertifikat user setelah approve.
-  2. **RA (Registration Authority)**: Validasi identitas & data User Cust yang minta sertifikat.
-  3. **Cust (User)**: Generate keypair sendiri → kirim public key + data ke RA → dapat sertifikat dari CA → simpan di public repository.
-- Setelah sertifikat aktif, lakukan 4 skenario utama:
-  - Cust1 kirim **pesan rahasia** ke Cust2 **+ tanda tangan digital** (hanya Cust2 bisa dekripsi + verifikasi siapa pengirimnya).
-  - Cust2 kirim **pengumuman publik** yang bisa dibaca semua orang **+ tanda tangan digital** (Cust1 & Cust3 bisa verifikasi).
-  - Cust2 terima & proses pesan rahasia Cust1.
-  - Cust3 verifikasi pengumuman publik Cust2.
-- Bonus: Tunjukkan **tamper detection** (integritas pesan).
+The tool is designed for academic use in cryptography courses, allowing students and instructors to explore the complete lifecycle of digital certificates and their application in secure communication.
 
-### Kenapa Code Ini Stand Out?
-- **Real crypto** pakai library `cryptography` (bukan simulasi bohongan/base64).
-- **X.509 certificates** asli (self-signed CA root + CA-signed user certs).
-- **Terminal UI keren** dengan warna, emoji, tabel status, fase terpisah (bisa live demo di presentasi).
-- **Full roleplay** sesuai requirement: CA, RA, Cust1/2/3.
-- **Enkripsi + Dekripsi + Digital Signature** semua berfungsi nyata.
-- **No comments** di code Python (sesuai request kamu).
-- **Interactive Menu** → kamu bisa pilih sendiri langkah mana yang mau didemo saat presentasi!
-- Siap push ke GitHub, tinggal tambah dokumentasi slide Google Drive.
+## Key Features
 
-Presentasi: Jalankan script → pilih menu interaktif → screenshot tiap langkah → jelasin alur di slide + link repo ini.
+- **Real Cryptography**: All operations use the `cryptography` library (RSA-2048, SHA-256, OAEP, PSS).
+- **X.509 Certificates**: Proper self-signed root CA certificate and CA-issued user certificates.
+- **Interactive Menu**: Choose individual steps or run the complete scenario.
+- **Professional Output**: Clean terminal interface suitable for classroom demonstration and documentation.
+- **Role-Play Coverage**:
+  - Certificate Authority (CA)
+  - Registration Authority (RA)
+  - Multiple Custodians (users)
+  - Confidential messaging with encryption + digital signature
+  - Public announcements with signature verification
+  - Tamper/integrity detection
 
-## Cara Menjalankan di Arch Linux (atau distro lain)
+## How to Run
 
 ```bash
-# 1. Clone repo
- git clone https://github.com/OnlyOneArthur/UAS-kriptografi-sms-4.git
- cd UAS-kriptografi-sms-4
- git checkout pki-roleplay-simulation
+# Clone the repository
+git clone https://github.com/OnlyOneArthur/UAS-kriptografi-sms-4.git
+cd UAS-kriptografi-sms-4
+git checkout pki-roleplay-simulation
 
-# 2. Install
+# Install dependency
 pip install -r requirements.txt
 
-# 3. Jalankan (interactive menu akan muncul)
+# Run the simulation
 python pki_uas_simulation.py
 ```
 
-Output akan sangat colorful di terminal modern (Arch default bagus). Kamu bisa pilih menu 1-9 bebas.
+The program presents a numbered menu. Select options 1–9 to explore different aspects of the PKI workflow.
 
-## Struktur File di Repo
+## Menu Options
 
-- `pki_uas_simulation.py` → Full code Python + Interactive Menu (no comments)
-- `README.md` → Dokumentasi lengkap
-- `requirements.txt` → Dependency
+1. Initialize PKI Infrastructure (Certificate Authority + Registration Authority)  
+2. Register Users and Issue X.509 Certificates  
+3. Display Public Key Repository and Certificate Status  
+4. Custodian-01: Send Confidential Message with Digital Signature  
+5. Custodian-02: Issue Signed Public Announcement  
+6. Custodian-02: Decrypt and Verify Received Confidential Message  
+7. Third-Party Verification of Public Announcement  
+8. Demonstrate Message Integrity Protection (Tamper Detection)  
+9. Execute Complete Role-Play Scenario (All Steps)  
+0. Exit
 
-## Menu yang Tersedia
+## Cryptographic Details
 
-1. Inisialisasi PKI (CA + RA)
-2. Daftarkan & Sertifikasi Semua Cust
-3. Lihat Status User & Repository
-4. Cust1 Kirim Pesan Rahasia + Signature ke Cust2
-5. Cust2 Kirim Pengumuman Publik + Signature
-6. Cust2 Buka & Verifikasi Pesan Rahasia
-7. Cust1 & Cust3 Verifikasi Pengumuman Publik
-8. Demo Tamper Detection
-9. Full Demo Otomatis (jalan semua fase)
-0. Keluar
+- **Key Generation**: 2048-bit RSA
+- **Certificate Standard**: X.509 v3
+- **Signature Algorithm**: RSASSA-PSS with SHA-256
+- **Encryption Algorithm**: RSA-OAEP with SHA-256
+- **Hash Function**: SHA-256
 
-## Tips Presentasi
+All operations are performed using industry-standard libraries and follow current best practices for educational demonstration.
 
-- Jalankan script, tunjukkan menu interaktif
-- Pilih menu satu per satu sesuai alur presentasi
-- Screenshot setiap fase
-- Tekankan bahwa code ini real RSA + X.509 + bisa milih sendiri (stand out!)
+## Educational Value
 
-## Credits
+This simulator illustrates the following PKI concepts in a practical, observable way:
 
-Revisi interactive menu khusus buat kamu biar presentasi lebih fleksibel & keren.
-Semoga UAS lancar dan nilai 100! 🚀
+- Separation of duties between CA and RA
+- Certificate issuance and trusted repository
+- Digital signatures for authentication and integrity
+- Asymmetric encryption for confidentiality
+- Trust model based on CA-issued certificates
+- Detection of message tampering
+
+## Recommended Use in Presentations
+
+- Run the program live during the presentation.
+- Use individual menu options to focus on specific concepts.
+- Capture screenshots of certificate details, encryption steps, and verification results.
+- Emphasize that all cryptographic operations are real (not simulated).
+
+## File Structure
+
+- `pki_uas_simulation.py` — Main interactive simulation (no inline comments)
+- `README.md` — This documentation
+- `requirements.txt` — Python dependencies
+
+## License & Attribution
+
+Created for the UAS Kriptografi course as an educational tool. Feel free to adapt for similar academic purposes.
+
+For questions or improvements, contact the course group.
