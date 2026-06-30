@@ -313,6 +313,21 @@ class Sim:
                 err("Unexpected: verification passed on tampered message")
         close_box()
 
+    def reset_all(self):
+        header("RESET ALL DATA")
+        confirm = input("Are you sure you want to reset everything? (y/n): ").strip().lower()
+        if confirm == "y":
+            self.ca = None
+            self.ra = None
+            self.users = {}
+            self.signed_messages = {}
+            self.encrypted_messages = {}
+            self.public_announcements = {}
+            ok("All data has been reset. You can start fresh now.")
+        else:
+            warn("Reset cancelled")
+        close_box()
+
     def menu(self):
         while True:
             self.start()
@@ -326,6 +341,7 @@ class Sim:
             print("  8. Cust \u2014 Publish Public Announcement")
             print("  9. Cust \u2014 Verify Public Announcement")
             print("  t. Tamper / Negative Test")
+            print("  r. Reset All Data")
             print("  0. Exit")
             print()
             ch = input("Choose: ").strip().lower()
@@ -350,6 +366,8 @@ class Sim:
                 self.verify_announcement()
             elif ch == "t":
                 self.tamper_test()
+            elif ch == "r":
+                self.reset_all()
             elif ch == "0":
                 header("THANKS FOR USING")
                 print(f"{CYAN}All cryptography operations are real (RSA-2048 + X.509).{RESET}")
