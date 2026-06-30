@@ -21,13 +21,28 @@ def clear():
 
 def header(text):
     clear()
-    print(f"{BOLD}{MAGENTA}")
+    # Read full art and crop for side panel (smaller + right side)
     with open("header_art.txt") as f:
-        print(f.read())
-    print(f"{RESET}")
-    print(f"{BOLD}{CYAN}╔{'\u2550'*74}╗{RESET}")
-    print(f"{BOLD}{WHITE}║ {text.center(72)} ║{RESET}")
-    print(f"{BOLD}{CYAN}╚{'\u2550'*74}╝{RESET}\n")
+        all_lines = [line.rstrip("\n") for line in f.readlines() if line.strip()]
+
+    # Take the core face area (adjust start:end if needed)
+    skull = all_lines[8:32]   # ~24 lines, focused on the face
+
+    # Title box on the left (narrow)
+    box_width = 50
+    box_lines = [
+        f"{BOLD}{CYAN}╔{'\u2550'*box_width}╗{RESET}",
+        f"{BOLD}{WHITE}║ {text.center(box_width-2)} ║{RESET}",
+        f"{BOLD}{CYAN}╚{'\u2550'*box_width}╝{RESET}",
+    ]
+
+    # Print side by side
+    max_lines = max(len(box_lines), len(skull))
+    for i in range(max_lines):
+        left = box_lines[i] if i < len(box_lines) else " " * (box_width + 2)
+        right = skull[i] if i < len(skull) else ""
+        print(f"{left}   {right}")
+    print()
 
 def section(text):
     print(f"\n{BOLD}{BLUE}┌─ {text} {'\u2500'*(68-len(text))}┐{RESET}")
