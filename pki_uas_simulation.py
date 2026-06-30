@@ -20,26 +20,25 @@ WHITE = "\033[37m"
 # so it works regardless of the current working directory.
 HEADER_ART_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "header_art.txt")
 
-# Width reserved for the left title panel (chars)
-LEFT_WIDTH = 44
-# Width reserved for the right ASCII art panel (chars, trimmed to fit)
-ART_WIDTH = 36
+# Width of the right-side ASCII art column (chars). Increase to show more detail.
+ART_WIDTH = 55
+# Inner width of the left title box (excluding the 2 border chars on each side).
+TITLE_INNER = 36
 
 def clear():
     os.system('clear' if os.name == 'posix' else 'cls')
 
 def _load_art_lines():
-    """Load header_art.txt and scale it down to ART_WIDTH by trimming/truncating each line."""
+    """Load header_art.txt, strip blank outer lines, truncate each line to ART_WIDTH."""
     try:
         with open(HEADER_ART_PATH, encoding="utf-8") as f:
             raw = f.read().splitlines()
     except FileNotFoundError:
         return ["  [header_art.txt not found]"]
 
-    # Strip trailing whitespace per line, then truncate to ART_WIDTH
     lines = [line.rstrip()[:ART_WIDTH] for line in raw]
 
-    # Drop leading/trailing blank lines for a tighter look
+    # Remove leading/trailing blank lines
     while lines and not lines[0].strip():
         lines.pop(0)
     while lines and not lines[-1].strip():
@@ -51,30 +50,31 @@ def header(text):
     clear()
 
     art_lines = _load_art_lines()
+    art_h = len(art_lines)
 
-    # ── Build the left panel lines ──────────────────────────────────────────
-    # Row 0 : top border
-    # Row 1 : title text
-    # Row 2 : bottom border
-    # Remaining rows are blank left-side padding so height matches art
-    left_top    = f"{BOLD}{CYAN}\u2554{'\u2550' * (LEFT_WIDTH - 2)}\u2557{RESET}"
-    left_title  = f"{BOLD}{WHITE}\u2551 {text.center(LEFT_WIDTH - 4)} \u2551{RESET}"
-    left_bottom = f"{BOLD}{CYAN}\u255a{'\u2550' * (LEFT_WIDTH - 2)}\u255d{RESET}"
-    left_blank  = f"{BOLD}{CYAN}\u2551{' ' * (LEFT_WIDTH - 2)}\u2551{RESET}"
+    # Build title box (3 lines tall)
+    box_w = TITLE_INNER + 4  # 2 border + 1 space each side
+    top    = f"{BOLD}{CYAN}\u2554{'\u2550' * (box_w - 2)}\u2557{RESET}"
+    mid    = f"{BOLD}{WHITE}\u2551 {text.center(TITLE_INNER)} \u2551{RESET}"
+    bot    = f"{BOLD}{CYAN}\u255a{'\u2550' * (box_w - 2)}\u255d{RESET}"
+    box_lines = [top, mid, bot]
+    box_h = len(box_lines)  # always 3
 
-    left_lines = [left_top, left_title, left_bottom]
+    # Vertically center the box within the art height
+    pad_top = (art_h - box_h) // 2
+    pad_bot = art_h - box_h - pad_top
 
-    # Pad left panel height to match art height
-    while len(left_lines) < len(art_lines):
-        left_lines.append(" " * LEFT_WIDTH)
+    # Build the full left column: blank lines above/below the box
+    blank = " " * box_w
+    left_col = ([blank] * pad_top) + box_lines + ([blank] * pad_bot)
 
-    # ── Zip left + right and print side-by-side ─────────────────────────────
-    total = max(len(left_lines), len(art_lines))
-    art_lines  += ["" ] * (total - len(art_lines))
-    left_lines += [" " * LEFT_WIDTH] * (total - len(left_lines))
+    # Ensure both columns are equal height (shouldn't differ, but be safe)
+    total = max(len(left_col), art_h)
+    left_col  += [blank] * (total - len(left_col))
+    art_lines += [""   ] * (total - len(art_lines))
 
-    print()  # top breathing room
-    for left, art in zip(left_lines, art_lines):
+    print()  # breathing room
+    for left, art in zip(left_col, art_lines):
         art_colored = f"{BOLD}{MAGENTA}{art:<{ART_WIDTH}}{RESET}"
         print(f"{left}  {art_colored}")
     print()
