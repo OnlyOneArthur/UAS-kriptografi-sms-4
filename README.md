@@ -26,83 +26,55 @@ UAS ini tugas **berkelompok dengan roleplay + dokumentasi lengkap** tentang **Pu
 - **Full roleplay** sesuai requirement: CA, RA, Cust1/2/3.
 - **Enkripsi + Dekripsi + Digital Signature** semua berfungsi nyata.
 - **No comments** di code Python (sesuai request kamu).
+- **Interactive Menu** → kamu bisa pilih sendiri langkah mana yang mau didemo saat presentasi!
 - Siap push ke GitHub, tinggal tambah dokumentasi slide Google Drive.
 
-Presentasi: Jalankan script live di terminal → screenshot tiap fase → jelasin alur di slide + link repo ini.
+Presentasi: Jalankan script → pilih menu interaktif → screenshot tiap langkah → jelasin alur di slide + link repo ini.
 
 ## Cara Menjalankan di Arch Linux (atau distro lain)
 
 ```bash
-# 1. Clone atau buat repo baru (contoh: UAS-kriptografi-sms-4)
-git clone https://github.com/GianneAngely/UAS-kriptografi-sms-4.git
-cd UAS-kriptografi-sms-4
+# 1. Clone repo
+ git clone https://github.com/OnlyOneArthur/UAS-kriptografi-sms-4.git
+ cd UAS-kriptografi-sms-4
+ git checkout pki-roleplay-simulation
 
-# Atau buat baru:
-mkdir UAS-kriptografi-pki && cd UAS-kriptografi-pki
-git init
+# 2. Install
+pip install -r requirements.txt
 
-# 2. Install dependencies (Arch)
-sudo pacman -S python python-pip
-pip install --user cryptography
-
-# Atau pakai venv (recommended)
-python -m venv venv
-source venv/bin/activate
-pip install cryptography
-
-# 3. Jalankan script (pastikan file pki_uas_simulation.py ada)
+# 3. Jalankan (interactive menu akan muncul)
 python pki_uas_simulation.py
-
-# Atau buat executable
-chmod +x pki_uas_simulation.py
-./pki_uas_simulation.py
 ```
 
-Output akan sangat colorful di terminal modern (Arch default bagus).
+Output akan sangat colorful di terminal modern (Arch default bagus). Kamu bisa pilih menu 1-9 bebas.
 
 ## Struktur File di Repo
 
-- `pki_uas_simulation.py` → Full code Python (no comments, langsung jalan)
-- `README.md` → Ini (dokumentasi + cara pakai)
-- `requirements.txt` → Untuk reproducibility
+- `pki_uas_simulation.py` → Full code Python + Interactive Menu (no comments)
+- `README.md` → Dokumentasi lengkap
+- `requirements.txt` → Dependency
 
-## Cara Push ke GitHub (buat repo baru jika belum ada)
+## Menu yang Tersedia
 
-```bash
-git add .
-git commit -m "feat: full PKI roleplay simulation with real RSA+X509 for UAS Kriptografi"
-git branch -M main
-git remote add origin https://github.com/GianneAngely/UAS-kriptografi-sms-4.git
-git push -u origin main
-```
+1. Inisialisasi PKI (CA + RA)
+2. Daftarkan & Sertifikasi Semua Cust
+3. Lihat Status User & Repository
+4. Cust1 Kirim Pesan Rahasia + Signature ke Cust2
+5. Cust2 Kirim Pengumuman Publik + Signature
+6. Cust2 Buka & Verifikasi Pesan Rahasia
+7. Cust1 & Cust3 Verifikasi Pengumuman Publik
+8. Demo Tamper Detection
+9. Full Demo Otomatis (jalan semua fase)
+0. Keluar
 
-Lalu upload presentasi (slide + screenshot terminal) ke Google Drive, share link di jawaban UAS.
+## Tips Presentasi
 
-## Yang Ditunjukkan di Code (Sesuai Tugas Roleplay)
-
-✅ CA buat keypair private sendiri, public di repo  
-✅ RA validasi data Cust → approve → forward ke CA  
-✅ Cust generate keypair → request cert via RA → dapat sertifikat  
-✅ Cust1 & Cust2 (juga Cust3) tersertifikasi  
-✅ Cust1 sign + encrypt secret message → hanya Cust2 decrypt + verify sig  
-✅ Cust2 sign public announcement → Cust1 & Cust3 verify sig  
-✅ Semua verifikasi pakai public key dari sertifikat di repo CA (trust chain)  
-✅ Bonus: Tamper detection demo  
-
-## Tips Presentasi & Dokumentasi
-
-- Jalankan script full di laptop saat presentasi (tunjukkan live).
-- Screenshot tiap header FASE.
-- Di slide jelasin:
-  - Teori singkat PKI (CA, RA, cert, digital sig, asymmetric encrypt)
-  - Role masing-masing + mapping ke code
-  - Kenapa pakai RSA-OAEP & PSS (modern best practice)
-  - Manfaat nyata (confidentiality, integrity, authentication, non-repudiation)
-- Tambahkan di slide: "Code ini 100% sesuai requirement UAS + extra real crypto biar stand out"
+- Jalankan script, tunjukkan menu interaktif
+- Pilih menu satu per satu sesuai alur presentasi
+- Screenshot setiap fase
+- Tekankan bahwa code ini real RSA + X.509 + bisa milih sendiri (stand out!)
 
 ## Credits
 
-Dibuat khusus untuk bantu kamu & kelompok dapat nilai maksimal di UAS Kriptografi.
-Run it, screenshot, push ke GitHub, present with confidence! 🚀
-
-Semoga UAS lancar dan kelompok paling stand out! Kalau butuh edit tambahan (misal tambah file output log, atau GUI sederhana), bilang aja.
+Revisi interactive menu khusus buat kamu biar presentasi lebih fleksibel & keren.
+Semoga UAS lancar dan nilai 100! 🚀

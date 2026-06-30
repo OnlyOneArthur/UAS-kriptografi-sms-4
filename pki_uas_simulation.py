@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import datetime
 import hashlib
+import os
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
@@ -14,12 +15,14 @@ OKCYAN = "\033[96m"
 OKGREEN = "\033[92m"
 WARNING = "\033[93m"
 FAIL = "\033[91m"
-UNDERLINE = "\033[4m"
+
+def clear_screen():
+    os.system('clear' if os.name == 'posix' else 'cls')
 
 def print_header(text):
-    print(f"\n{BOLD}{HEADER}{'='*70}{RESET}")
-    print(f"{BOLD}{HEADER}{text.center(70)}{RESET}")
-    print(f"{BOLD}{HEADER}{'='*70}{RESET}\n")
+    print(f"\n{BOLD}{HEADER}{'='*72}{RESET}")
+    print(f"{BOLD}{HEADER}{text.center(72)}{RESET}")
+    print(f"{BOLD}{HEADER}{'='*72}{RESET}\n")
 
 def print_step(text):
     print(f"{OKCYAN}▶ {text}{RESET}")
@@ -35,9 +38,6 @@ def print_fail(text):
 
 def print_info(text):
     print(f"{OKBLUE}ℹ️  {text}{RESET}")
-
-def get_fingerprint(data_bytes):
-    return hashlib.sha256(data_bytes).hexdigest()[:16].upper() + "..."
 
 def get_cert_fingerprint(cert):
     return cert.fingerprint(hashes.SHA256()).hex()[:16].upper() + "..."
@@ -120,9 +120,6 @@ class User:
         self.public_key = self.private_key.public_key()
         self.certificate = None
 
-    def get_public_pem(self):
-        return self.public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo).decode()
-
     def request_certificate(self, ra, extra_data=None):
         data = {"nama": self.user_id, "email": f"{self.user_id.lower()}@uas-kripto.id", "identitas": "Mahasiswa UAS Kriptografi"}
         if extra_data:
@@ -152,133 +149,221 @@ class User:
         plaintext = self.private_key.decrypt(ciphertext, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
         return plaintext
 
-def print_repository_status(ca):
-    print_header("STATUS REPOSITORY PUBLIK (KUNCI PUBLIK + SERTIFIKAT)")
-    if not ca.public_repository:
-        print_warning("Repository masih kosong")
-        return
-    print(f"{'User ID':<12} {'Fingerprint Sertifikat':<22} {'Issuer':<25}")
-    print("-" * 65)
-    for uid, cert in ca.public_repository.items():
-        fprint = get_cert_fingerprint(cert)
-        issuer_cn = cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value if cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME) else "N/A"
-        print(f"{uid:<12} {fprint:<22} {issuer_cn:<25}")
-    print()
+class PKISimulator:
+    def __init__(self):
+        self.ca = None
+        self.ra = None
+        self.users = {}
+        self.secret_message = b"Halo Cust2! Ini pesan rahasia super penting untuk UAS Kriptografi. Hanya kamu yang bisa baca dan verifikasi tanda tangan Cust1. Semoga kelompok kita stand out!"
+        self.secret_cipher = None
+        self.secret_sig = None
+        self.public_announcement = b"PENGUMUMAN RESMI: Simulasi PKI Roleplay UAS Kriptografi telah sukses! Terima kasih CA & RA atas sertifikasi. Semua Cust bisa verifikasi pesan ini. - Cust2"
+        self.public_sig = None
 
-def print_user_status(users):
-    print_header("STATUS USER & SERTIFIKASI")
-    print(f"{'User':<10} {'Role':<8} {'Sertifikat':<12} {'Fingerprint':<20}")
-    print("-" * 55)
-    for u in users:
-        status = "✅ Tersertifikasi" if u.certificate else "❌ Belum"
-        fprint = get_cert_fingerprint(u.certificate) if u.certificate else "N/A"
-        print(f"{u.user_id:<10} {u.role:<8} {status:<12} {fprint:<20}")
-    print()
+    def init_pki(self):
+        clear_screen()
+        print_header("FASE 1: INISIALISASI INFRASTRUKTUR PKI")
+        self.ca = CertificateAuthority()
+        self.ra = RegistrationAuthority(ca=self.ca)
+        self.users = {}
+        self.secret_cipher = None
+        self.secret_sig = None
+        self.public_sig = None
+        print_step("CA membuat pasangan kunci RSA-2048...")
+        print_success("CA keypair generated. Public key disimpan di repository (bisa diakses publik)")
+        print_cert_info(self.ca.certificate, "Root CA Certificate (Self-Signed)")
+        print_step("RA siap menerima dan memvalidasi permohonan dari User Cust...")
+        print_success("RA initialized. Siap validasi identitas User.")
+        print_success("PKI berhasil diinisialisasi!")
+
+    def register_all_users(self):
+        if not self.ca or not self.ra:
+            print_fail("PKI belum diinisialisasi! Pilih menu 1 dulu.")
+            return
+        clear_screen()
+        print_header("FASE 2: DAFTARKAN & SERTIFIKASI USER")
+        for name in ["Cust1", "Cust2", "Cust3"]:
+            if name not in self.users:
+                u = User(name)
+                u.request_certificate(self.ra)
+                self.users[name] = u
+                print()
+        self.show_status()
+
+    def show_status(self):
+        print_header("STATUS USER & REPOSITORY")
+        if not self.users:
+            print_warning("Belum ada user yang tersertifikasi")
+            return
+        print(f"{'User':<10} {'Role':<8} {'Sertifikat':<15} {'Fingerprint':<20}")
+        print("-" * 58)
+        for uid, u in self.users.items():
+            status = "✅ Tersertifikasi" if u.certificate else "❌ Belum"
+            fprint = get_cert_fingerprint(u.certificate) if u.certificate else "N/A"
+            print(f"{uid:<10} {u.role:<8} {status:<15} {fprint:<20}")
+        print()
+        if self.ca and self.ca.public_repository:
+            print(f"{'User ID':<12} {'Fingerprint Sertifikat':<22} {'Issuer':<20}")
+            print("-" * 58)
+            for uid, cert in self.ca.public_repository.items():
+                fprint = get_cert_fingerprint(cert)
+                issuer_cn = cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value if cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME) else "N/A"
+                print(f"{uid:<12} {fprint:<22} {issuer_cn:<20}")
+        print()
+
+    def send_secret_cust1_to_cust2(self):
+        if "Cust1" not in self.users or "Cust2" not in self.users:
+            print_fail("Cust1 dan Cust2 belum tersertifikasi! Pilih menu 2 dulu.")
+            return
+        clear_screen()
+        print_header("FASE 3: CUST1 KIRIM PESAN RAHASIA + TANDA TANGAN ke CUST2")
+        print_info(f"Pesan asli: {self.secret_message.decode()[:70]}...")
+        cust1 = self.users["Cust1"]
+        cust2 = self.users["Cust2"]
+        print_step("[Cust1] Menandatangani pesan dengan private key...")
+        self.secret_sig = cust1.sign(self.secret_message)
+        print_success("Digital signature dibuat (64 bytes)")
+        print_step("[Cust1] Mengambil public key Cust2 dari repository CA...")
+        cust2_pub = self.ca.get_public_key("Cust2")
+        print_step("[Cust1] Mengenkripsi pesan dengan public key Cust2 (RSA-OAEP)...")
+        self.secret_cipher = cust1.encrypt_message(self.secret_message, cust2_pub)
+        print_success(f"Pesan terenkripsi ({len(self.secret_cipher)} bytes). Hanya Cust2 bisa dekripsi.")
+        print_info("Data dikirim: [ciphertext + signature + sender=Cust1]")
+
+    def cust2_process_secret(self):
+        if not self.secret_cipher or not self.secret_sig:
+            print_fail("Belum ada pesan rahasia dari Cust1! Pilih menu 4 dulu.")
+            return
+        clear_screen()
+        print_header("FASE 4: CUST2 TERIMA, DEKRIPSI & VERIFIKASI TANDA TANGAN")
+        cust2 = self.users["Cust2"]
+        print_step("[Cust2] Mendekripsi ciphertext...")
+        decrypted = cust2.decrypt_message(self.secret_cipher)
+        print_success(f"Dekripsi sukses! Pesan: {decrypted.decode()}")
+        print_step("[Cust2] Memverifikasi signature Cust1 dari repository...")
+        cust1_pub = self.ca.get_public_key("Cust1")
+        if cust1_pub and cust2.verify_signature(decrypted, self.secret_sig, cust1_pub):
+            print_success("✅ Verifikasi BERHASIL! Integritas & autentikasi terjamin. Pengirim asli Cust1.")
+        else:
+            print_fail("Verifikasi GAGAL!")
+
+    def send_public_announcement(self):
+        if "Cust2" not in self.users:
+            print_fail("Cust2 belum tersertifikasi!")
+            return
+        clear_screen()
+        print_header("FASE 5: CUST2 KIRIM PENGUMUMAN PUBLIK + TANDA TANGAN")
+        print_info(f"Isi pengumuman: {self.public_announcement.decode()}")
+        cust2 = self.users["Cust2"]
+        print_step("[Cust2] Menandatangani pengumuman...")
+        self.public_sig = cust2.sign(self.public_announcement)
+        print_success("Digital signature untuk pengumuman dibuat")
+        print_info("Pengumuman + signature sekarang bisa diverifikasi siapa saja via repository CA")
+
+    def verify_public_by_others(self):
+        if not self.public_sig:
+            print_fail("Belum ada pengumuman dari Cust2! Pilih menu 5 dulu.")
+            return
+        clear_screen()
+        print_header("FASE 6: CUST1 & CUST3 VERIFIKASI PENGUMUMAN PUBLIK")
+        for name in ["Cust1", "Cust3"]:
+            if name not in self.users:
+                continue
+            verifier = self.users[name]
+            print_step(f"[{name}] Mengambil public key Cust2 dari repository...")
+            cust2_pub = self.ca.get_public_key("Cust2")
+            print_step(f"[{name}] Memverifikasi signature...")
+            if cust2_pub and verifier.verify_signature(self.public_announcement, self.public_sig, cust2_pub):
+                print_success(f"✅ [{name}] Verifikasi BERHASIL! Pengumuman asli dari Cust2.")
+                print_info(f"[{name}] Isi: {self.public_announcement.decode()}")
+            else:
+                print_fail(f"[{name}] Verifikasi GAGAL!")
+            print()
+
+    def tamper_demo(self):
+        if not self.secret_sig or "Cust1" not in self.users:
+            print_fail("Belum ada signature dari Cust1! Lakukan menu 4 dulu.")
+            return
+        clear_screen()
+        print_header("DEMO TAMPER DETECTION (INTEGRITAS)")
+        tampered = self.secret_message + b" [TAMPERED by attacker]"
+        print_warning("Attacker mencoba ubah pesan setelah dikirim...")
+        cust2 = self.users["Cust2"]
+        cust1_pub = self.ca.get_public_key("Cust1")
+        if cust2.verify_signature(tampered, self.secret_sig, cust1_pub):
+            print_fail("Seharusnya gagal tapi ini demo")
+        else:
+            print_success("✅ Verifikasi GAGAL pada pesan yang di-tamper! PKI berhasil deteksi perubahan integritas.")
+
+    def run_full_auto(self):
+        clear_screen()
+        print_header("JALANKAN FULL DEMO OTOMATIS")
+        print_info("Menjalankan semua fase secara berurutan...")
+        self.init_pki()
+        input("Tekan Enter lanjut ke registrasi...")
+        self.register_all_users()
+        input("Tekan Enter lanjut kirim pesan rahasia...")
+        self.send_secret_cust1_to_cust2()
+        input("Tekan Enter lanjut proses di Cust2...")
+        self.cust2_process_secret()
+        input("Tekan Enter lanjut pengumuman publik...")
+        self.send_public_announcement()
+        input("Tekan Enter lanjut verifikasi publik...")
+        self.verify_public_by_others()
+        input("Tekan Enter lanjut demo tamper...")
+        self.tamper_demo()
+        print_header("FULL DEMO SELESAI")
+        print_success("Semua skenario roleplay berhasil didemonstrasikan!")
+
+    def menu_loop(self):
+        while True:
+            clear_screen()
+            print_header("UAS KRIPTOGRAFI - PKI INTERACTIVE SIMULATOR (MENU)")
+            print(f"{BOLD}{OKGREEN}Kelompok Paling Stand Out | Pilih sendiri apa yang mau didemo{RESET}\n")
+            print("1. Inisialisasi PKI (CA + RA)")
+            print("2. Daftarkan & Sertifikasi Semua Cust (Cust1,2,3)")
+            print("3. Lihat Status User & Repository")
+            print("4. Cust1 Kirim Pesan Rahasia + Tanda Tangan ke Cust2")
+            print("5. Cust2 Kirim Pengumuman Publik + Tanda Tangan")
+            print("6. Cust2 Buka & Verifikasi Pesan Rahasia dari Cust1")
+            print("7. Cust1 & Cust3 Verifikasi Pengumuman Publik")
+            print("8. Demo Tamper Detection (Integritas)")
+            print("9. Jalankan Full Demo Otomatis (Semua Fase)")
+            print("0. Keluar")
+            print()
+            choice = input("Pilih menu [0-9]: ").strip()
+            if choice == "1":
+                self.init_pki()
+            elif choice == "2":
+                self.register_all_users()
+            elif choice == "3":
+                clear_screen()
+                self.show_status()
+            elif choice == "4":
+                self.send_secret_cust1_to_cust2()
+            elif choice == "5":
+                self.send_public_announcement()
+            elif choice == "6":
+                self.cust2_process_secret()
+            elif choice == "7":
+                self.verify_public_by_others()
+            elif choice == "8":
+                self.tamper_demo()
+            elif choice == "9":
+                self.run_full_auto()
+            elif choice == "0":
+                clear_screen()
+                print_header("TERIMA KASIH")
+                print_success("Semoga UAS Kriptografi lancar & kelompok paling stand out! 🔥")
+                print_info("Jangan lupa screenshot tiap menu untuk dokumentasi & presentasi.")
+                break
+            else:
+                print_fail("Pilihan tidak valid!")
+            input("\nTekan Enter untuk kembali ke menu utama...")
 
 def main():
-    print_header("UAS KRIPTOGRAFI - SIMULASI PUBLIC KEY INFRASTRUCTURE (PKI) DENGAN ROLEPLAY")
-    print(f"{BOLD}{OKGREEN}Kelompok Paling Stand Out | Full Python Terminal Demo | Real RSA + X.509{RESET}\n")
-    print_info("Point UAS: Demonstrasikan pemahaman PKI melalui simulasi role CA, RA, Cust dengan alur nyata: generate keypair -> registrasi & validasi -> sertifikasi -> gunakan untuk digital signature + enkripsi/dekripsi pesan.")
-    print_info("Semua output di terminal ini mensimulasikan interaksi antar role secara lengkap sesuai tugas roleplay.\n")
-
-    ca = CertificateAuthority()
-    ra = RegistrationAuthority(ca=ca)
-
-    print_header("FASE 1: SETUP INFRASTRUKTUR PKI")
-    print_step("CA membuat pasangan kunci RSA-2048...")
-    ca_pub_pem_short = ca.public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo).decode()[:100] + "..."
-    print_success(f"CA keypair generated. Public key disimpan di repository (bisa diakses publik)")
-    print_cert_info(ca.certificate, "Root CA Certificate (Self-Signed)")
-
-    print_step("RA siap menerima dan memvalidasi permohonan dari User Cust...")
-    print_success("RA initialized. Siap validasi identitas User.\n")
-
-    print_header("FASE 2: USER GENERATE KEY & REQUEST SERTIFIKAT via RA -> CA")
-    cust1 = User("Cust1")
-    cust2 = User("Cust2")
-    cust3 = User("Cust3")
-
-    users = [cust1, cust2, cust3]
-    for u in users:
-        print_step(f"[{u.user_id}] Generate pasangan kunci RSA-2048 (private disimpan sendiri, public akan disertifikasi)")
-        u.request_certificate(ra)
-        print()
-
-    print_user_status(users)
-    print_repository_status(ca)
-
-    print_header("FASE 3: CUST1 KIRIM PESAN RAHASIA + TANDA TANGAN DIGITAL ke CUST2")
-    secret_message = b"Halo Cust2! Ini pesan rahasia super penting untuk UAS Kriptografi. Hanya kamu yang bisa baca dan verifikasi tanda tangan Cust1. Semoga kelompok kita stand out!"
-    print_info(f"Pesan asli (plaintext): {secret_message.decode()[:80]}...")
-
-    print_step("[Cust1] Menandatangani pesan dengan private key Cust1 (RSA-PSS + SHA256)...")
-    signature_c1 = cust1.sign(secret_message)
-    print_success("Digital signature dibuat (64 bytes)")
-
-    print_step("[Cust1] Mengambil public key Cust2 dari repository CA (via sertifikat)...")
-    cust2_pub = ca.get_public_key("Cust2")
-    if not cust2_pub:
-        print_fail("Gagal ambil pubkey Cust2")
-        return
-
-    print_step("[Cust1] Mengenkripsi pesan dengan public key Cust2 (RSA-OAEP + SHA256)...")
-    ciphertext = cust1.encrypt_message(secret_message, cust2_pub)
-    print_success(f"Pesan terenkripsi (ciphertext {len(ciphertext)} bytes). Hanya Cust2 dengan private key-nya yang bisa dekripsi.")
-
-    print_info("Data yang dikirim Cust1 -> Cust2: [ciphertext, signature, sender=Cust1]")
-
-    print_header("FASE 4: CUST2 TERIMA, DEKRIPSI & VERIFIKASI TANDA TANGAN CUST1")
-    print_step("[Cust2] Menerima ciphertext + signature dari Cust1...")
-    print_step("[Cust2] Mendekripsi ciphertext dengan private key Cust2...")
-    decrypted_msg = cust2.decrypt_message(ciphertext)
-    print_success(f"Dekripsi sukses! Pesan: {decrypted_msg.decode()}")
-
-    print_step("[Cust2] Memverifikasi digital signature Cust1 menggunakan public key Cust1 dari repository CA...")
-    cust1_pub = ca.get_public_key("Cust1")
-    if cust1_pub and cust2.verify_signature(decrypted_msg, signature_c1, cust1_pub):
-        print_success("Verifikasi tanda tangan digital Cust1 BERHASIL! Integritas & autentikasi terjamin. Pengirim asli Cust1.")
-    else:
-        print_fail("Verifikasi signature GAGAL!")
-
-    print_header("FASE 5: CUST2 KIRIM PENGUMUMAN PUBLIK + TANDA TANGAN ke SEMUA (Cust1 & Cust3)")
-    public_announcement = b"PENGUMUMAN RESMI: Simulasi PKI Roleplay UAS Kriptografi telah sukses! Terima kasih CA & RA atas sertifikasi. Semua Cust bisa verifikasi pesan ini. - Cust2"
-    print_info(f"Isi pengumuman: {public_announcement.decode()}")
-
-    print_step("[Cust2] Menandatangani pengumuman dengan private key Cust2...")
-    signature_c2 = cust2.sign(public_announcement)
-    print_success("Digital signature untuk pengumuman dibuat")
-
-    print_info("Pengumuman + signature dipublikasikan (bisa dibaca siapa saja, tapi signature diverifikasi via repo)")
-
-    print_header("FASE 6: CUST1 & CUST3 VERIFIKASI PENGUMUMAN PUBLIK dari CUST2")
-    for verifier in [cust1, cust3]:
-        print_step(f"[{verifier.user_id}] Mengambil public key + sertifikat Cust2 dari repository CA...")
-        cust2_pub_for_verify = ca.get_public_key("Cust2")
-        print_step(f"[{verifier.user_id}] Memverifikasi signature pada pengumuman...")
-        if cust2_pub_for_verify and verifier.verify_signature(public_announcement, signature_c2, cust2_pub_for_verify):
-            print_success(f"[{verifier.user_id}] Verifikasi BERHASIL! Pengumuman asli dari Cust2, tidak dimodifikasi.")
-            print_info(f"[{verifier.user_id}] Membaca pengumuman: {public_announcement.decode()}")
-        else:
-            print_fail(f"[{verifier.user_id}] Verifikasi GAGAL!")
-        print()
-
-    print_header("DEMO TAMBAHAN: TAMPER DETECTION (INTEGRITAS)")
-    tampered_msg = secret_message + b" [TAMPERED by attacker]"
-    print_warning("Misalnya attacker ubah pesan setelah dikirim...")
-    if cust2.verify_signature(tampered_msg, signature_c1, cust1_pub):
-        print_fail("Seharusnya gagal, tapi ini demo error path")
-    else:
-        print_success("Verifikasi GAGAL pada pesan yang di-tamper! Signature tidak match. PKI mendeteksi perubahan integritas.")
-
-    print_header("RINGKASAN & POIN UAS YANG DIDEMO")
-    print_success("1. CA: Generate keypair root, self-sign cert, issue user certs setelah RA approve, simpan di public repo.")
-    print_success("2. RA: Validasi data identitas User Cust, forward ke CA untuk sertifikasi.")
-    print_success("3. Cust: Generate keypair sendiri, request cert via RA, dapatkan sertifikat tersimpan di repo.")
-    print_success("4. Digital Signature: Cust1 sign -> Cust2 verify (auth + integrity). Cust2 sign public msg -> all verify.")
-    print_success("5. Enkripsi/Decryption: Cust1 encrypt secret utk Cust2 -> Cust2 decrypt (confidentiality). Hanya penerima bisa baca.")
-    print_success("6. Trust Model: Semua verifikasi pakai public key dari sertifikat yang di-sign CA (root of trust).")
-    print_info("Semua skenario roleplay selesai. Code ini bisa dipresentasikan live di terminal + screenshot untuk dokumentasi & slide.")
-    print(f"\n{BOLD}{OKGREEN}🚀 UAS KRIPTOGRAFI SELESAI - KELOMPOK PALING STAND OUT! 🚀{RESET}\n")
+    sim = PKISimulator()
+    sim.menu_loop()
 
 if __name__ == "__main__":
     main()
