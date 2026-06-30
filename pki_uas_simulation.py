@@ -20,21 +20,64 @@ WHITE = "\033[37m"
 # so it works regardless of the current working directory.
 HEADER_ART_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "header_art.txt")
 
+# Width reserved for the left title panel (chars)
+LEFT_WIDTH = 44
+# Width reserved for the right ASCII art panel (chars, trimmed to fit)
+ART_WIDTH = 36
+
 def clear():
     os.system('clear' if os.name == 'posix' else 'cls')
 
-def header(text):
-    clear()
-    print(f"{BOLD}{MAGENTA}")
+def _load_art_lines():
+    """Load header_art.txt and scale it down to ART_WIDTH by trimming/truncating each line."""
     try:
         with open(HEADER_ART_PATH, encoding="utf-8") as f:
-            print(f.read())
+            raw = f.read().splitlines()
     except FileNotFoundError:
-        print("  [ASCII art not found - place header_art.txt next to this script]")
-    print(f"{RESET}")
-    print(f"{BOLD}{CYAN}\u2554{'\u2550'*74}\u2557{RESET}")
-    print(f"{BOLD}{WHITE}\u2551 {text.center(72)} \u2551{RESET}")
-    print(f"{BOLD}{CYAN}\u255a{'\u2550'*74}\u255d{RESET}\n")
+        return ["  [header_art.txt not found]"]
+
+    # Strip trailing whitespace per line, then truncate to ART_WIDTH
+    lines = [line.rstrip()[:ART_WIDTH] for line in raw]
+
+    # Drop leading/trailing blank lines for a tighter look
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+
+    return lines
+
+def header(text):
+    clear()
+
+    art_lines = _load_art_lines()
+
+    # ── Build the left panel lines ──────────────────────────────────────────
+    # Row 0 : top border
+    # Row 1 : title text
+    # Row 2 : bottom border
+    # Remaining rows are blank left-side padding so height matches art
+    left_top    = f"{BOLD}{CYAN}\u2554{'\u2550' * (LEFT_WIDTH - 2)}\u2557{RESET}"
+    left_title  = f"{BOLD}{WHITE}\u2551 {text.center(LEFT_WIDTH - 4)} \u2551{RESET}"
+    left_bottom = f"{BOLD}{CYAN}\u255a{'\u2550' * (LEFT_WIDTH - 2)}\u255d{RESET}"
+    left_blank  = f"{BOLD}{CYAN}\u2551{' ' * (LEFT_WIDTH - 2)}\u2551{RESET}"
+
+    left_lines = [left_top, left_title, left_bottom]
+
+    # Pad left panel height to match art height
+    while len(left_lines) < len(art_lines):
+        left_lines.append(" " * LEFT_WIDTH)
+
+    # ── Zip left + right and print side-by-side ─────────────────────────────
+    total = max(len(left_lines), len(art_lines))
+    art_lines  += ["" ] * (total - len(art_lines))
+    left_lines += [" " * LEFT_WIDTH] * (total - len(left_lines))
+
+    print()  # top breathing room
+    for left, art in zip(left_lines, art_lines):
+        art_colored = f"{BOLD}{MAGENTA}{art:<{ART_WIDTH}}{RESET}"
+        print(f"{left}  {art_colored}")
+    print()
 
 def section(text):
     print(f"\n{BOLD}{BLUE}\u250c\u2500 {text} {'\u2500'*(68-len(text))}\u2510{RESET}")
