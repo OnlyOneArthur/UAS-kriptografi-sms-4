@@ -16,108 +16,42 @@ RED = "\033[31m"
 MAGENTA = "\033[35m"
 WHITE = "\033[37m"
 
-# Resolve path to header_art.txt relative to this script file,
-# so it works regardless of the current working directory.
-HEADER_ART_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "header_art.txt"
-)
-
-# Width of the right-side ASCII art column (chars). Increase to show more detail.
-ART_WIDTH = 100
-# Inner width of the left title box (excluding the 2 border chars on each side).
-TITLE_INNER = 36
-
-
 def clear():
-    os.system("clear" if os.name == "posix" else "cls")
-
-
-def _load_art_lines():
-    """Load header_art.txt, strip blank outer lines, truncate each line to ART_WIDTH."""
-    try:
-        with open(HEADER_ART_PATH, encoding="utf-8") as f:
-            raw = f.read().splitlines()
-    except FileNotFoundError:
-        return ["  [header_art.txt not found]"]
-
-    lines = [line.rstrip()[:ART_WIDTH] for line in raw]
-
-    # Remove leading/trailing blank lines
-    while lines and not lines[0].strip():
-        lines.pop(0)
-    while lines and not lines[-1].strip():
-        lines.pop()
-
-    return lines
-
+    os.system('clear' if os.name == 'posix' else 'cls')
 
 def header(text):
     clear()
-
-    art_lines = _load_art_lines()
-    art_h = len(art_lines)
-
-    # Build title box (3 lines tall)
-    box_w = TITLE_INNER + 4  # 2 border + 1 space each side
-    top = f"{BOLD}{CYAN}\u2554{'\u2550' * (box_w - 2)}\u2557{RESET}"
-    mid = f"{BOLD}{WHITE}\u2551 {text.center(TITLE_INNER)} \u2551{RESET}"
-    bot = f"{BOLD}{CYAN}\u255a{'\u2550' * (box_w - 2)}\u255d{RESET}"
-    box_lines = [top, mid, bot]
-    box_h = len(box_lines)  # always 3
-
-    # Vertically center the box within the art height
-    pad_top = (art_h - box_h) // 2
-    pad_bot = art_h - box_h - pad_top
-
-    # Build the full left column: blank lines above/below the box
-    blank = " " * box_w
-    left_col = ([blank] * pad_top) + box_lines + ([blank] * pad_bot)
-
-    # Ensure both columns are equal height (shouldn't differ, but be safe)
-    total = max(len(left_col), art_h)
-    left_col += [blank] * (total - len(left_col))
-    art_lines += [""] * (total - len(art_lines))
-
-    print()  # breathing room
-    for left, art in zip(left_col, art_lines):
-        art_colored = f"{BOLD}{MAGENTA}{art:<{ART_WIDTH}}{RESET}"
-        print(f"{left}  {art_colored}")
-    print()
-
+    print(f"{BOLD}{MAGENTA}")
+    with open("header_art.txt") as f:
+        print(f.read())
+    print(f"{RESET}")
+    print(f"{BOLD}{CYAN}╔{'\u2550'*74}╗{RESET}")
+    print(f"{BOLD}{WHITE}║ {text.center(72)} ║{RESET}")
+    print(f"{BOLD}{CYAN}╚{'\u2550'*74}╝{RESET}\n")
 
 def section(text):
-    print(
-        f"\n{BOLD}{BLUE}\u250c\u2500 {text} {'\u2500' * (68 - len(text))}\u2510{RESET}"
-    )
-
+    print(f"\n{BOLD}{BLUE}┌─ {text} {'\u2500'*(68-len(text))}┐{RESET}")
 
 def step(text):
-    print(f"{CYAN}\u2502 \u25b6 {text}{RESET}")
-
+    print(f"{CYAN}│ \u25b6 {text}{RESET}")
 
 def ok(text):
-    print(f"{GREEN}\u2502 \u2713 {text}{RESET}")
-
+    print(f"{GREEN}│ \u2713 {text}{RESET}")
 
 def warn(text):
-    print(f"{YELLOW}\u2502 ! {text}{RESET}")
-
+    print(f"{YELLOW}│ ! {text}{RESET}")
 
 def err(text):
-    print(f"{RED}\u2502 \u2717 {text}{RESET}")
-
+    print(f"{RED}│ \u2717 {text}{RESET}")
 
 def info(text):
-    print(f"{BLUE}\u2502 i {text}{RESET}")
-
+    print(f"{BLUE}│ i {text}{RESET}")
 
 def close_box():
-    print(f"{BOLD}{BLUE}\u2514{'\u2500' * 74}\u2518{RESET}")
-
+    print(f"{BOLD}{BLUE}└{'\u2500'*74}┘{RESET}")
 
 def get_fp(cert):
     return cert.fingerprint(hashes.SHA256()).hex()[:10].upper()
-
 
 class CA:
     def __init__(self):
@@ -130,44 +64,18 @@ class CA:
     def _root(self):
         n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "UAS-CA")])
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        return (
-            x509.CertificateBuilder()
-            .subject_name(n)
-            .issuer_name(n)
-            .public_key(self.pub)
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(now)
-            .not_valid_after(now + datetime.timedelta(days=3650))
-            .add_extension(x509.BasicConstraints(ca=True, path_length=None), True)
-            .sign(self.priv, hashes.SHA256())
-        )
+        return x509.CertificateBuilder().subject_name(n).issuer_name(n).public_key(self.pub).serial_number(x509.random_serial_number()).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=3650)).add_extension(x509.BasicConstraints(ca=True, path_length=None), True).sign(self.priv, hashes.SHA256())
 
     def issue(self, uid, pub):
         n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, uid)])
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        c = (
-            x509.CertificateBuilder()
-            .subject_name(n)
-            .issuer_name(self.cert.subject)
-            .public_key(pub)
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(now)
-            .not_valid_after(now + datetime.timedelta(days=365))
-            .add_extension(
-                x509.KeyUsage(
-                    True, True, True, False, False, False, False, False, False
-                ),
-                True,
-            )
-            .sign(self.priv, hashes.SHA256())
-        )
+        c = x509.CertificateBuilder().subject_name(n).issuer_name(self.cert.subject).public_key(pub).serial_number(x509.random_serial_number()).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=365)).add_extension(x509.KeyUsage(True, True, True, False, False, False, False, False, False), True).sign(self.priv, hashes.SHA256())
         self.repo[uid] = c
         return c
 
     def pubkey(self, uid):
         c = self.repo.get(uid)
         return c.public_key() if c else None
-
 
 class RA:
     def __init__(self, ca):
@@ -186,7 +94,6 @@ class RA:
             return self.ca.issue(uid, pub)
         return None
 
-
 class Cust:
     def __init__(self, uid):
         self.id = uid
@@ -196,52 +103,26 @@ class Cust:
 
     def ask_cert(self, ra):
         step(f"{self.id} \u2192 sending request to RA")
-        self.cert = ra.ask(
-            self.id, {"nama": self.id, "email": f"{self.id}@kripto.id"}, self.pub
-        )
+        self.cert = ra.ask(self.id, {"nama": self.id, "email": f"{self.id}@kripto.id"}, self.pub)
         if self.cert:
             ok(f"{self.id} got certificate from CA")
         return self.cert
 
     def sign(self, m):
-        return self.priv.sign(
-            m,
-            padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH),
-            hashes.SHA256(),
-        )
+        return self.priv.sign(m, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
 
     def verify(self, m, s, p):
         try:
-            p.verify(
-                s,
-                m,
-                padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH),
-                hashes.SHA256(),
-            )
+            p.verify(s, m, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
             return True
         except:
             return False
 
     def enc(self, m, p):
-        return p.encrypt(
-            m,
-            padding.OAEP(
-                padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None,
-            ),
-        )
+        return p.encrypt(m, padding.OAEP(padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
 
     def dec(self, c):
-        return self.priv.decrypt(
-            c,
-            padding.OAEP(
-                padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None,
-            ),
-        )
-
+        return self.priv.decrypt(c, padding.OAEP(padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
 
 class Sim:
     def __init__(self):
@@ -255,7 +136,7 @@ class Sim:
 
     def start(self):
         header("UAS KRIPTOGRAFI \u2022 PKI SIMULATOR")
-        print(f"{BOLD}{WHITE}   CA  \u2022  RA  \u2022  Cust1 / Cust2 / Cust3{RESET}")
+        print(f"{BOLD}{WHITE}   CA  \u2022  RA  \u2022  registered users{RESET}")
         print(f"{CYAN}   Simple \u2022 Real crypto \u2022 Interactive{RESET}\n")
 
     def init(self):
@@ -272,16 +153,21 @@ class Sim:
         if not self.ca:
             err("Init first (option 1)")
             return
-        header("REGISTER USERS")
-        for n in ["Cust1", "Cust2", "Cust3"]:
-            if n not in self.c:
-                u = Cust(n)
-                u.ask_cert(self.ra)
-                self.c[n] = u
+        header("REGISTER USER")
+        uid = input("Enter username (e.g. yoga, agus, angel): ").strip()
+        if not uid:
+            err("Username cannot be empty")
+            return
+        if uid in self.c:
+            warn(f"{uid} already registered")
+            return
+        print(f"\n{BOLD}{CYAN}Registering {uid}{RESET}")
+        u = Cust(uid)
+        u.ask_cert(self.ra)
+        self.c[uid] = u
         section("Status")
-        for uid, u in self.c.items():
-            fp = get_fp(u.cert) if u.cert else "----"
-            print(f"  {uid:<6}  {'\u2713 OK' if u.cert else '....'}   {fp}")
+        fp = get_fp(u.cert) if u.cert else "----"
+        print(f"  {uid:<6}  {'\u2713 OK' if u.cert else '....'}   {fp}")
         close_box()
 
     def stat(self):
@@ -290,83 +176,113 @@ class Sim:
             warn("No users yet")
             return
         print(f"  User    Status     Fingerprint")
-        print("  " + "-" * 50)
+        print("  " + "-"*50)
         for user_id, c in self.c.items():
-            print(
-                f"  {user_id:<6}  {'\u2713 Trusted' if c.cert else 'Pending'}   {get_fp(c.cert) if c.cert else 'N/A'}"
-            )
+            print(f"  {user_id:<6}  {'\u2713 Trusted' if c.cert else 'Pending'}   {get_fp(c.cert) if c.cert else 'N/A'}")
         close_box()
 
     def secret(self):
-        if "Cust1" not in self.c or "Cust2" not in self.c:
+        if not self.c:
             err("Register users first")
             return
-        header("SECRET MESSAGE")
-        msg = b"Hello Cust2, this is confidential from Cust1."
-        c1 = self.c["Cust1"]
-        section("Cust1")
+        header("SECRET MESSAGE + SIGN")
+        print("Available users:", list(self.c.keys()))
+        sender = input("Sender   : ").strip()
+        if sender not in self.c:
+            err("Sender not found")
+            return
+        msg = input("Message  : ").encode()
+        c1 = self.c[sender]
+        section(sender)
         step("Signing with private key...")
         self.sg = c1.sign(msg)
         ok("Signature ready (RSASSA-PSS)")
-        step("Encrypting for Cust2...")
-        self.ct = c1.enc(msg, self.ca.pubkey("Cust2"))
-        ok(f"Encrypted ({len(self.ct)} bytes)")
+        step("Encrypting for receiver...")
+        # For simplicity, encrypt to first other user or ask
+        receivers = [k for k in self.c if k != sender]
+        if not receivers:
+            err("No other user to send to")
+            return
+        recv_name = receivers[0] if len(receivers) == 1 else input(f"Receiver ({'/'.join(receivers)}): ").strip()
+        if recv_name not in self.c:
+            recv_name = receivers[0]
+        self.ct = c1.enc(msg, self.ca.pubkey(recv_name))
+        self.last_sender = sender
+        self.last_receiver = recv_name
+        ok(f"Encrypted message for {recv_name} ({len(self.ct)} bytes)")
         close_box()
 
     def recv(self):
-        if not self.ct:
-            err("No secret sent yet")
+        if not self.ct or not hasattr(self, 'last_receiver'):
+            err("No secret message sent yet")
             return
         header("DECRYPT & VERIFY")
-        c2 = self.c["Cust2"]
-        section("Cust2")
+        receiver = self.last_receiver
+        if receiver not in self.c:
+            err("Receiver not found")
+            return
+        c2 = self.c[receiver]
+        section(receiver)
         step("Decrypting...")
         pt = c2.dec(self.ct)
         ok(f"Message: {pt.decode()}")
-        step("Checking signature from Cust1...")
-        if c2.verify(pt, self.sg, self.ca.pubkey("Cust1")):
-            ok("Signature VALID \u2192 Authentic & intact")
-        else:
-            err("Signature INVALID")
+        if hasattr(self, 'last_sender') and self.last_sender in self.c:
+            step(f"Checking signature from {self.last_sender}...")
+            if c2.verify(pt, self.sg, self.ca.pubkey(self.last_sender)):
+                ok("Signature VALID \u2192 Authentic & intact")
+            else:
+                err("Signature INVALID")
         close_box()
 
     def pub(self):
-        if "Cust2" not in self.c:
-            err("Cust2 missing")
+        if not self.c:
+            err("Register users first")
             return
         header("PUBLIC ANNOUNCEMENT")
-        c2 = self.c["Cust2"]
-        section("Cust2")
+        print("Available users:", list(self.c.keys()))
+        sender = input("Who publishes? : ").strip()
+        if sender not in self.c:
+            err("User not found")
+            return
+        c2 = self.c[sender]
+        section(sender)
         step("Signing announcement...")
         self.psg = c2.sign(self.pmsg)
         ok("Announcement signed & published")
         info(self.pmsg.decode())
+        self.last_pub_sender = sender
         close_box()
 
     def vpub(self):
-        if not self.psg:
+        if not self.psg or not hasattr(self, 'last_pub_sender'):
             err("No announcement yet")
             return
         header("VERIFY PUBLIC MSG")
-        for n in ["Cust1", "Cust3"]:
-            if n in self.c:
-                c = self.c[n]
-                step(f"{n} checking signature...")
-                if c.verify(self.pmsg, self.psg, self.ca.pubkey("Cust2")):
-                    ok(f"{n}: VALID")
-                else:
-                    err(f"{n}: INVALID")
+        print("Available users:", list(self.c.keys()))
+        verifier = input("Who verifies? : ").strip()
+        if verifier not in self.c:
+            err("User not found")
+            return
+        c = self.c[verifier]
+        step(f"{verifier} checking signature from {self.last_pub_sender}...")
+        if c.verify(self.pmsg, self.psg, self.ca.pubkey(self.last_pub_sender)):
+            ok(f"{verifier}: VALID")
+        else:
+            err(f"{verifier}: INVALID")
         close_box()
 
     def tamper(self):
-        if not self.sg:
+        if not self.sg or not hasattr(self, 'last_sender'):
             err("Send secret first")
             return
         header("TAMPER TEST")
         bad = b"Hacked message!!!"
-        c2 = self.c["Cust2"]
+        c2 = self.c.get(self.last_receiver)
+        if not c2:
+            err("Receiver not found")
+            return
         warn("Message was changed by attacker...")
-        if c2.verify(bad, self.sg, self.ca.pubkey("Cust1")):
+        if c2.verify(bad, self.sg, self.ca.pubkey(self.last_sender)):
             err("Verification passed (bad)")
         else:
             ok("Verification FAILED \u2192 Tamper detected!")
@@ -395,14 +311,14 @@ class Sim:
         while True:
             self.start()
             print("  1. Init CA + RA")
-            print("  2. Register Cust1/2/3")
+            print("  2. Register New User (one by one)")
             print("  3. Show Status")
-            print("  4. Cust1 send secret + sign")
-            print("  5. Cust2 publish announcement")
-            print("  6. Cust2 decrypt + verify")
-            print("  7. Others verify announcement")
-            print("  8. Tamper demo")
-            print("  9. Full scenario")
+            print("  4. Send Secret Message + Sign")
+            print("  5. Decrypt & Verify Secret")
+            print("  6. Publish Public Announcement")
+            print("  7. Verify Public Announcement")
+            print("  8. Tamper Detection Demo")
+            print("  9. Full Auto Demo")
             print("  0. Exit")
             print()
             ch = input("Choose: ").strip()
@@ -415,9 +331,9 @@ class Sim:
             elif ch == "4":
                 self.secret()
             elif ch == "5":
-                self.pub()
-            elif ch == "6":
                 self.recv()
+            elif ch == "6":
+                self.pub()
             elif ch == "7":
                 self.vpub()
             elif ch == "8":
@@ -438,7 +354,6 @@ class Sim:
             else:
                 err("Invalid")
             input("\nEnter to menu...")
-
 
 if __name__ == "__main__":
     Sim().menu()
