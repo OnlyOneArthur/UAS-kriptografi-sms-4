@@ -18,15 +18,19 @@ WHITE = "\033[37m"
 
 # Resolve path to header_art.txt relative to this script file,
 # so it works regardless of the current working directory.
-HEADER_ART_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "header_art.txt")
+HEADER_ART_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "header_art.txt"
+)
 
 # Width of the right-side ASCII art column (chars). Increase to show more detail.
-ART_WIDTH = 55
+ART_WIDTH = 100
 # Inner width of the left title box (excluding the 2 border chars on each side).
 TITLE_INNER = 36
 
+
 def clear():
-    os.system('clear' if os.name == 'posix' else 'cls')
+    os.system("clear" if os.name == "posix" else "cls")
+
 
 def _load_art_lines():
     """Load header_art.txt, strip blank outer lines, truncate each line to ART_WIDTH."""
@@ -46,6 +50,7 @@ def _load_art_lines():
 
     return lines
 
+
 def header(text):
     clear()
 
@@ -54,9 +59,9 @@ def header(text):
 
     # Build title box (3 lines tall)
     box_w = TITLE_INNER + 4  # 2 border + 1 space each side
-    top    = f"{BOLD}{CYAN}\u2554{'\u2550' * (box_w - 2)}\u2557{RESET}"
-    mid    = f"{BOLD}{WHITE}\u2551 {text.center(TITLE_INNER)} \u2551{RESET}"
-    bot    = f"{BOLD}{CYAN}\u255a{'\u2550' * (box_w - 2)}\u255d{RESET}"
+    top = f"{BOLD}{CYAN}\u2554{'\u2550' * (box_w - 2)}\u2557{RESET}"
+    mid = f"{BOLD}{WHITE}\u2551 {text.center(TITLE_INNER)} \u2551{RESET}"
+    bot = f"{BOLD}{CYAN}\u255a{'\u2550' * (box_w - 2)}\u255d{RESET}"
     box_lines = [top, mid, bot]
     box_h = len(box_lines)  # always 3
 
@@ -70,8 +75,8 @@ def header(text):
 
     # Ensure both columns are equal height (shouldn't differ, but be safe)
     total = max(len(left_col), art_h)
-    left_col  += [blank] * (total - len(left_col))
-    art_lines += [""   ] * (total - len(art_lines))
+    left_col += [blank] * (total - len(left_col))
+    art_lines += [""] * (total - len(art_lines))
 
     print()  # breathing room
     for left, art in zip(left_col, art_lines):
@@ -79,29 +84,40 @@ def header(text):
         print(f"{left}  {art_colored}")
     print()
 
+
 def section(text):
-    print(f"\n{BOLD}{BLUE}\u250c\u2500 {text} {'\u2500'*(68-len(text))}\u2510{RESET}")
+    print(
+        f"\n{BOLD}{BLUE}\u250c\u2500 {text} {'\u2500' * (68 - len(text))}\u2510{RESET}"
+    )
+
 
 def step(text):
     print(f"{CYAN}\u2502 \u25b6 {text}{RESET}")
 
+
 def ok(text):
     print(f"{GREEN}\u2502 \u2713 {text}{RESET}")
+
 
 def warn(text):
     print(f"{YELLOW}\u2502 ! {text}{RESET}")
 
+
 def err(text):
     print(f"{RED}\u2502 \u2717 {text}{RESET}")
+
 
 def info(text):
     print(f"{BLUE}\u2502 i {text}{RESET}")
 
+
 def close_box():
-    print(f"{BOLD}{BLUE}\u2514{'\u2500'*74}\u2518{RESET}")
+    print(f"{BOLD}{BLUE}\u2514{'\u2500' * 74}\u2518{RESET}")
+
 
 def get_fp(cert):
     return cert.fingerprint(hashes.SHA256()).hex()[:10].upper()
+
 
 class CA:
     def __init__(self):
@@ -114,18 +130,44 @@ class CA:
     def _root(self):
         n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "UAS-CA")])
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        return x509.CertificateBuilder().subject_name(n).issuer_name(n).public_key(self.pub).serial_number(x509.random_serial_number()).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=3650)).add_extension(x509.BasicConstraints(ca=True, path_length=None), True).sign(self.priv, hashes.SHA256())
+        return (
+            x509.CertificateBuilder()
+            .subject_name(n)
+            .issuer_name(n)
+            .public_key(self.pub)
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now)
+            .not_valid_after(now + datetime.timedelta(days=3650))
+            .add_extension(x509.BasicConstraints(ca=True, path_length=None), True)
+            .sign(self.priv, hashes.SHA256())
+        )
 
     def issue(self, uid, pub):
         n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, uid)])
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        c = x509.CertificateBuilder().subject_name(n).issuer_name(self.cert.subject).public_key(pub).serial_number(x509.random_serial_number()).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=365)).add_extension(x509.KeyUsage(True, True, True, False, False, False, False, False, False), True).sign(self.priv, hashes.SHA256())
+        c = (
+            x509.CertificateBuilder()
+            .subject_name(n)
+            .issuer_name(self.cert.subject)
+            .public_key(pub)
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now)
+            .not_valid_after(now + datetime.timedelta(days=365))
+            .add_extension(
+                x509.KeyUsage(
+                    True, True, True, False, False, False, False, False, False
+                ),
+                True,
+            )
+            .sign(self.priv, hashes.SHA256())
+        )
         self.repo[uid] = c
         return c
 
     def pubkey(self, uid):
         c = self.repo.get(uid)
         return c.public_key() if c else None
+
 
 class RA:
     def __init__(self, ca):
@@ -144,6 +186,7 @@ class RA:
             return self.ca.issue(uid, pub)
         return None
 
+
 class Cust:
     def __init__(self, uid):
         self.id = uid
@@ -153,26 +196,52 @@ class Cust:
 
     def ask_cert(self, ra):
         step(f"{self.id} \u2192 sending request to RA")
-        self.cert = ra.ask(self.id, {"nama": self.id, "email": f"{self.id}@kripto.id"}, self.pub)
+        self.cert = ra.ask(
+            self.id, {"nama": self.id, "email": f"{self.id}@kripto.id"}, self.pub
+        )
         if self.cert:
             ok(f"{self.id} got certificate from CA")
         return self.cert
 
     def sign(self, m):
-        return self.priv.sign(m, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
+        return self.priv.sign(
+            m,
+            padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH),
+            hashes.SHA256(),
+        )
 
     def verify(self, m, s, p):
         try:
-            p.verify(s, m, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
+            p.verify(
+                s,
+                m,
+                padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH),
+                hashes.SHA256(),
+            )
             return True
         except:
             return False
 
     def enc(self, m, p):
-        return p.encrypt(m, padding.OAEP(padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+        return p.encrypt(
+            m,
+            padding.OAEP(
+                padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
+            ),
+        )
 
     def dec(self, c):
-        return self.priv.decrypt(c, padding.OAEP(padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+        return self.priv.decrypt(
+            c,
+            padding.OAEP(
+                padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
+            ),
+        )
+
 
 class Sim:
     def __init__(self):
@@ -221,9 +290,11 @@ class Sim:
             warn("No users yet")
             return
         print(f"  User    Status     Fingerprint")
-        print("  " + "-"*50)
+        print("  " + "-" * 50)
         for user_id, c in self.c.items():
-            print(f"  {user_id:<6}  {'\u2713 Trusted' if c.cert else 'Pending'}   {get_fp(c.cert) if c.cert else 'N/A'}")
+            print(
+                f"  {user_id:<6}  {'\u2713 Trusted' if c.cert else 'Pending'}   {get_fp(c.cert) if c.cert else 'N/A'}"
+            )
         close_box()
 
     def secret(self):
@@ -367,6 +438,7 @@ class Sim:
             else:
                 err("Invalid")
             input("\nEnter to menu...")
+
 
 if __name__ == "__main__":
     Sim().menu()
