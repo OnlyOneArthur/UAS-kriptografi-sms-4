@@ -16,37 +16,41 @@ RED = "\033[31m"
 MAGENTA = "\033[35m"
 WHITE = "\033[37m"
 
+LEFT_WIDTH = 42  # fixed width for the left (text) column
+
 def clear():
     os.system('clear' if os.name == 'posix' else 'cls')
 
-def header(text):
-    clear()
+def _load_art():
     with open("header_art.txt") as f:
-        art_lines = f.read().splitlines()
+        return f.read().splitlines()
 
-    # Build the title box lines (left column)
-    title_width = 40
-    box_lines = [
-        f"{BOLD}{CYAN}\u2554{'\u2550' * title_width}\u2557{RESET}",
-        f"{BOLD}{WHITE}\u2551 {text.center(title_width - 2)} \u2551{RESET}",
-        f"{BOLD}{CYAN}\u255a{'\u2550' * title_width}\u255d{RESET}",
+def _render_columns(left_lines, art_lines, gap="  "):
+    """Print left_lines and art_lines side by side, row by row."""
+    max_rows = max(len(left_lines), len(art_lines))
+    for i in range(max_rows):
+        left = left_lines[i] if i < len(left_lines) else ""
+        right = art_lines[i] if i < len(art_lines) else ""
+        # pad left column to fixed width (ignoring ANSI escape codes for length)
+        visible_len = len(_strip_ansi(left))
+        padding_spaces = " " * max(0, LEFT_WIDTH - visible_len)
+        print(f"{left}{padding_spaces}{gap}{BOLD}{MAGENTA}{right}{RESET}")
+
+def _strip_ansi(s):
+    """Remove ANSI escape codes to get visible character count."""
+    import re
+    return re.sub(r'\033\[[0-9;]*m', '', s)
+
+def header(text):
+    """Used for sub-screens (not the main menu). Shows title box beside ASCII art."""
+    clear()
+    art_lines = _load_art()
+    box = [
+        f"{BOLD}{CYAN}\u2554{'\u2550' * (LEFT_WIDTH - 2)}\u2557{RESET}",
+        f"{BOLD}{WHITE}\u2551 {text.center(LEFT_WIDTH - 4)} \u2551{RESET}",
+        f"{BOLD}{CYAN}\u255a{'\u2550' * (LEFT_WIDTH - 2)}\u255d{RESET}",
     ]
-
-    # Pad the shorter column so both have the same number of rows
-    max_rows = max(len(art_lines), len(box_lines))
-    # Center the title box vertically relative to the ASCII art
-    box_top_pad = (max_rows - len(box_lines)) // 2
-    padded_box = (
-        [" " * (title_width + 2)] * box_top_pad
-        + box_lines
-        + [" " * (title_width + 2)] * (max_rows - len(box_lines) - box_top_pad)
-    )
-    padded_art = art_lines + [""] * (max_rows - len(art_lines))
-
-    # Print side-by-side: title box on the left, ASCII art on the right
-    gap = "   "
-    for left, right in zip(padded_box, padded_art):
-        print(f"{left}{gap}{BOLD}{MAGENTA}{right}{RESET}")
+    _render_columns(box, art_lines)
     print()
 
 def section(text):
@@ -148,11 +152,6 @@ class Sim:
         self.signed_messages = {}
         self.encrypted_messages = {}
         self.public_announcements = {}
-
-    def start(self):
-        header("UAS KRIPTOGRAFI \u2022 PKI SIMULATOR")
-        print(f"{BOLD}{WHITE}   CA  \u2022  RA  \u2022  Cust1 / Cust2 / Cust3{RESET}")
-        print(f"{CYAN}   Real Crypto \u2022 Role Play \u2022 Professional{RESET}\n")
 
     def init_pki(self):
         header("CA + RA INITIALIZATION")
@@ -347,19 +346,32 @@ class Sim:
 
     def menu(self):
         while True:
-            self.start()
-            print("  1. Init CA + RA")
-            print("  2. Register New User (manual)")
-            print("  3. RA \u2014 Approve Pending Requests")
-            print("  4. CA \u2014 Issue Certificates")
-            print("  5. Show Status / Repository")
-            print("  6. Cust \u2014 Send Signed Secret Message")
-            print("  7. Cust \u2014 Decrypt & Verify Secret")
-            print("  8. Cust \u2014 Publish Public Announcement")
-            print("  9. Cust \u2014 Verify Public Announcement")
-            print("  t. Tamper / Negative Test")
-            print("  r. Reset All Data")
-            print("  0. Exit")
+            clear()
+            art_lines = _load_art()
+
+            # Left column: title + subtitle + blank + menu items
+            left_lines = [
+                f"{BOLD}{CYAN}\u2554{'\u2550' * (LEFT_WIDTH - 2)}\u2557{RESET}",
+                f"{BOLD}{WHITE}\u2551{'UAS KRIPTOGRAFI \u2022 PKI SIMULATOR'.center(LEFT_WIDTH - 2)}\u2551{RESET}",
+                f"{BOLD}{CYAN}\u255a{'\u2550' * (LEFT_WIDTH - 2)}\u255d{RESET}",
+                f"{BOLD}{WHITE}  CA \u2022 RA \u2022 Cust1 / Cust2 / Cust3{RESET}",
+                f"{CYAN}  Real Crypto \u2022 Role Play \u2022 Professional{RESET}",
+                "",
+                f"  {BOLD}1.{RESET} Init CA + RA",
+                f"  {BOLD}2.{RESET} Register New User (manual)",
+                f"  {BOLD}3.{RESET} RA \u2014 Approve Pending Requests",
+                f"  {BOLD}4.{RESET} CA \u2014 Issue Certificates",
+                f"  {BOLD}5.{RESET} Show Status / Repository",
+                f"  {BOLD}6.{RESET} Cust \u2014 Send Signed Secret Message",
+                f"  {BOLD}7.{RESET} Cust \u2014 Decrypt & Verify Secret",
+                f"  {BOLD}8.{RESET} Cust \u2014 Publish Public Announcement",
+                f"  {BOLD}9.{RESET} Cust \u2014 Verify Public Announcement",
+                f"  {BOLD}t.{RESET} Tamper / Negative Test",
+                f"  {BOLD}r.{RESET} Reset All Data",
+                f"  {BOLD}0.{RESET} Exit",
+            ]
+
+            _render_columns(left_lines, art_lines)
             print()
             ch = input("Choose: ").strip().lower()
 
