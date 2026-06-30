@@ -16,39 +16,46 @@ RED = "\033[31m"
 MAGENTA = "\033[35m"
 WHITE = "\033[37m"
 
+# Resolve path to header_art.txt relative to this script file,
+# so it works regardless of the current working directory.
+HEADER_ART_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "header_art.txt")
+
 def clear():
     os.system('clear' if os.name == 'posix' else 'cls')
 
 def header(text):
     clear()
     print(f"{BOLD}{MAGENTA}")
-    with open("header_art.txt") as f:
-        print(f.read())
+    try:
+        with open(HEADER_ART_PATH, encoding="utf-8") as f:
+            print(f.read())
+    except FileNotFoundError:
+        print("  [ASCII art not found - place header_art.txt next to this script]")
     print(f"{RESET}")
-    print(f"{BOLD}{CYAN}╔{'\u2550'*74}╗{RESET}")
-    print(f"{BOLD}{WHITE}║ {text.center(72)} ║{RESET}")
-    print(f"{BOLD}{CYAN}╚{'\u2550'*74}╝{RESET}\n")
+    print(f"{BOLD}{CYAN}\u2554{'\u2550'*74}\u2557{RESET}")
+    print(f"{BOLD}{WHITE}\u2551 {text.center(72)} \u2551{RESET}")
+    print(f"{BOLD}{CYAN}\u255a{'\u2550'*74}\u255d{RESET}\n")
 
 def section(text):
-    print(f"\n{BOLD}{BLUE}┌─ {text} {'\u2500'*(68-len(text))}┐{RESET}")
+    print(f"\n{BOLD}{BLUE}\u250c\u2500 {text} {'\u2500'*(68-len(text))}\u2510{RESET}")
 
 def step(text):
-    print(f"{CYAN}│ \u25b6 {text}{RESET}")
+    print(f"{CYAN}\u2502 \u25b6 {text}{RESET}")
 
 def ok(text):
-    print(f"{GREEN}│ \u2713 {text}{RESET}")
+    print(f"{GREEN}\u2502 \u2713 {text}{RESET}")
 
 def warn(text):
-    print(f"{YELLOW}│ ! {text}{RESET}")
+    print(f"{YELLOW}\u2502 ! {text}{RESET}")
 
 def err(text):
-    print(f"{RED}│ \u2717 {text}{RESET}")
+    print(f"{RED}\u2502 \u2717 {text}{RESET}")
 
 def info(text):
-    print(f"{BLUE}│ i {text}{RESET}")
+    print(f"{BLUE}\u2502 i {text}{RESET}")
 
 def close_box():
-    print(f"{BOLD}{BLUE}└{'\u2500'*74}┘{RESET}")
+    print(f"{BOLD}{BLUE}\u2514{'\u2500'*74}\u2518{RESET}")
 
 def get_fp(cert):
     return cert.fingerprint(hashes.SHA256()).hex()[:10].upper()
