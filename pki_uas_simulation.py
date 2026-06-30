@@ -21,15 +21,36 @@ def clear():
 
 def header(text):
     clear()
-    print(f"{BOLD}{MAGENTA}")
-    print("      .--.      ")
-    print("     /    \\     ")
-    print("    | .--. |    ")
-    print("    | |  | |    ")
-    print("    | '--' |    ")
-    print("     \\    /     ")
-    print("      '--'      ")
-    print(f"{RESET}")
+    art = r"""
+                                  >!lllllllll!!!l!!lll!!ll!                                         
+                              !!l!!!ll                ~lll!!!l!~                                    
+                           l!l!!!                           ll!!l!l                                
+                        l!l!i                                   >!!!l!                              
+                     ~!!!!                                         _!!!!!                          
+                    ll!l                                              ,!!!!                         
+                  lll~               ..""^"``^"":,"^'                    l!!!                      
+                I!!,             .^'..... .........  i[l"'.                l!!l                    
+               l!I           .`^.''..'.:I;;;;;;;;:::^ l0OOf+;`.              ll!l                  
+              ll           ,,..'''`^^''^^^^^^"IllIIII;'~OOOLYc[:,'             ll!l                
+             ll        ::}OQ..````,::' ."""",;;;iiiii!;^v@mOQYYX(l,,            .;!ll              
+            l       ::;jOOO- '`````'            .!~<~<>I>M$MZQYYYj|!:,.            !l!!l           
+           l      ::;{Oq%*Ol ``'^^^.             ^^;~_+l;q@@#OLYYX/|)I:,.            lll!!         
+          !     I:I?/O#@$aO+ """",,'            ' """"" >q@@%OZUYYu|\\-::,.             !!!!i      
+             ,:,+t))0b$$@MOL'":,,:::'           ,::,::^ x#@@&OOUYYz|\\\{:::"                       
+          ,:;+|jxx1vOW@$$@wO<':;;I;;;".      .";;;II;:'<w@$@qOJYYYn\\\(;:::::`                     
+         ::]frrrrx/)QwB@@@BwO!`:;lllI;;;:,,:;;;;I!lI:`IOB@BwQYYYXn|\\?;:::::::,'                   
+         ;I}j/){}[[[[/0mZZZOOO?`,:IiiiiI;;:;I!ii!l;,`_a@@aQYYYYv\\\?;::;::'                        
+          ::::;;    l:::;:::,,I-""::;l<<<<<<<>i::,^;QB%bUYYXu\|(]I:::::"                           
+                            I::,"":::::::::;;;:"?JZmOJuf)]+!:::::::".                             
+                     <_+____:'     `' :;;::::::::::::::,,,:::,:^'.                                 
+                          >-+:_>_~             .'''``^^`'.                                         
+                               -+__~++;                                                            
+                                   I~_>~__]                                                        
+                                       ;_+_l++;|'.                                                 
+                                              !__+++i~_-^{                                         
+                                                         _-~++_<-l                                 
+"""
+    print(f"{BOLD}{MAGENTA}{art}{RESET}")
     print(f"{BOLD}{CYAN}╔{'\u2550'*74}╗{RESET}")
     print(f"{BOLD}{WHITE}║ {text.center(72)} ║{RESET}")
     print(f"{BOLD}{CYAN}╚{'\u2550'*74}╝{RESET}\n")
