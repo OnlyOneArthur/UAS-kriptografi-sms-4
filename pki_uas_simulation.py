@@ -21,30 +21,31 @@ def clear():
 
 def header(text):
     clear()
-    # Smaller skull for right side (core face area from user art)
-    skull = [
-        "               l!I           .`^.''..'.:I;;;;;;;;:::^ l0OOf+;`.              ll!l                   ",
-        "              ll           ,,..'''`^^''^^^^^^\"IllIIII;'~OOOLYc[:,'             ll!l                 ",
-        "             ll        ::}OQ..````,::' .\"\"\"\",;;;iiiii!;^v@mOQYYX(l,,            .;!ll               ",
-        "            l       ::;jOOO- '`````'            .!~<~<>I>M$MZQYYYj|!:,.            !l!!l            ",
-        "           l      ::;{Oq%*Ol ``'^^^.             ^^;~_+l;q@@#OLYYX/|)I:,.            lll!!          ",
-        "          !     I:I?/O#@$aO+ \"\"\"\",,'            ' \"\"\"\"\" >q@@%OZUYYu|\\\\-::,.             !!!!i       ",
-        "             ,:,+t))0b$$@MOL'\":,,:::'           ,::,::^ x#@@&OOUYYz|\\\\\{:::\"                        ",
-        "          ,:;+|jxx1vOW@$$@wO<':;;I;;;\".      .\";;;II;:'<w@$@qOJYYYn\\\\\(;:::::`                      ",
-        "         ::]frrrrx/)QwB@@@BwO!`:;lllI;;;:,,:;;;;I!lI:`IOB@BwQYYYXn|\\?;:::::::,'                    ",
-        "         ;I}j/){}[[[[/0mZZZOOO?`,:IiiiiI;;:;I!ii!l;,`_a@@aQYYYYv\\\\\?;::;::'                         ",
-        "          ::::;;    l:::;:::,,I-\"\"::;l<<<<<<<>i::,^;QB%bUYYXu\\|(]I:::::\"                            ",
-        "                            I::,\"\":::::::::;;;:\"?JZmOJuf)]+!:::::::\".                              ",
-        "                     <_+____:'     `' :;;::::::::::::::,,,:::,:^'.                                  ",
-        "                          >-+:_>_~             .'''``^^`'.                                          ",
-        "                               -+__~++;                                                             ",
-        "                                   I~_>~__]                                                         ",
-        "                                       ;_+_l++;|'.                                                  ",
-        "                                              !__+++i~_-^{"                                          ",
-        "                                                         _-~++_<-l                                  ",
-    ]
+    # Smaller skull on the right side (raw string to avoid escape issues)
+    skull_raw = r"""
+               l!I           .`^.''..'.:I;;;;;;;;:::^ l0OOf+;`.              ll!l
+              ll           ,,..'''`^^''^^^^^^"IllIIII;'~OOOLYc[:,'             ll!l
+             ll        ::}OQ..````,::' ."""",;;;iiiii!;^v@mOQYYX(l,,            .;!ll
+            l       ::;jOOO- '`````'            .!~<~<>I>M$MZQYYYj|!:,.            !l!!l
+           l      ::;{Oq%*Ol ``'^^^.             ^^;~_+l;q@@#OLYYX/|)I:,.            lll!!
+          !     I:I?/O#@$aO+ """",,'            ' """"" >q@@%OZUYYu|\-::,.             !!!!i
+             ,:,+t))0b$$@MOL'":,,:::'           ,::,::^ x#@@&OOUYYz|\{:::"
+          ,:;+|jxx1vOW@$$@wO<':;;I;;;".      .";;;II;:'<w@$@qOJYYYn|\(;:::::`
+         ::]frrrrx/)QwB@@@BwO!`:;lllI;;;:,,:;;;;I!lI:`IOB@BwQYYYXn|\?;:::::::,' 
+         ;I}j/){}[[[[/0mZZZOOO?`,:IiiiiI;;:;I!ii!l;,`_a@@aQYYYYv|\?;::;::'
+          ::::;;    l:::;:::,,I-""::;l<<<<<<<>i::,^;QB%bUYYXu|(]I:::::"
+                            I::,"":::::::::;;;:"?JZmOJuf)]+!:::::::". 
+                     <_+____:'     `' :;;::::::::::::::,,,:::,:^'.     
+                          >-+:_>_~             .'''``^^`'.             
+                               -+__~++;                                  
+                                   I~_>~__]                             
+                                       ;_+_l++;|'.                      
+                                              !__+++i~_-^{              
+                                                         _-~++_<-l      
+"""
+    skull = [line for line in skull_raw.strip("\n").split("\n") if line.strip()]
 
-    # Title box (left side)
+    # Title box on the left
     box_width = 52
     box_lines = [
         f"{BOLD}{CYAN}╔{'\u2550'*box_width}╗{RESET}",
@@ -52,7 +53,7 @@ def header(text):
         f"{BOLD}{CYAN}╚{'\u2550'*box_width}╝{RESET}",
     ]
 
-    # Print side by side (skull on the right)
+    # Side-by-side (skull on right)
     max_lines = max(len(box_lines), len(skull))
     for i in range(max_lines):
         left = box_lines[i] if i < len(box_lines) else " " * (box_width + 2)
