@@ -21,9 +21,12 @@ def clear():
 
 def header(text):
     clear()
-    print(f"{BOLD}{MAGENTA}")
     with open("header_art.txt") as f:
-        print(f.read())
+        all_lines = [line.rstrip("\n") for line in f.readlines() if line.strip()]
+    skull = all_lines[10:26]
+    print(f"{BOLD}{MAGENTA}")
+    for line in skull:
+        print(line)
     print(f"{RESET}")
     print(f"{BOLD}{CYAN}╔{'\u2550'*74}╗{RESET}")
     print(f"{BOLD}{WHITE}║ {text.center(72)} ║{RESET}")
@@ -55,44 +58,47 @@ def get_fp(cert):
 
 class CA:
     def __init__(self):
-        self.name = "CA"
         self.priv = rsa.generate_private_key(65537, 2048)
         self.pub = self.priv.public_key()
-        self.cert = self._root()
+        self.cert = self._create_root_cert()
         self.repo = {}
 
-    def _root(self):
-        n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "UAS-CA")])
+    def _create_root_cert(self):
+        n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "UAS-PKI-CA")])
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        return x509.CertificateBuilder().subject_name(n).issuer_name(n).public_key(self.pub).serial_number(x509.random_serial_number()).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=3650)).add_extension(x509.BasicConstraints(ca=True, path_length=None), True).sign(self.priv, hashes.SHA256())
+        return (x509.CertificateBuilder()
+                .subject_name(n).issuer_name(n).public_key(self.pub)
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(now).not_valid_after(now + datetime.timedelta(days=3650))
+                .add_extension(x509.BasicConstraints(ca=True, path_length=None), True)
+                .sign(self.priv, hashes.SHA256()))
 
-    def issue(self, uid, pub):
+    def issue_cert(self, uid, pubkey):
         n = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, uid)])
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        c = x509.CertificateBuilder().subject_name(n).issuer_name(self.cert.subject).public_key(pub).serial_number(x509.random_serial_number()).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=365)).add_extension(x509.KeyUsage(True, True, True, False, False, False, False, False, False), True).sign(self.priv, hashes.SHA256())
-        self.repo[uid] = c
-        return c
-
-    def pubkey(self, uid):
-        c = self.repo.get(uid)
-        return c.public_key() if c else None
+        cert = (x509.CertificateBuilder()
+                .subject_name(n).issuer_name(self.cert.subject).public_key(pubkey)
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(now).not_valid_after(now + datetime.timedelta(days=365))
+                .add_extension(x509.KeyUsage(True, True, True, False, False, False, False, False, False), True)
+                .sign(self.priv, hashes.SHA256()))
+        self.repo[uid] = cert
+        return cert
 
 class RA:
     def __init__(self, ca):
         self.ca = ca
+        self.pending = {}
+        self.approved = {}
 
-    def ok(self, uid, data):
-        step(f"RA checking {uid}...")
-        if data.get("nama") and data.get("email"):
-            ok("RA approved \u2192 sent to CA")
+    def receive_request(self, uid, nama, email):
+        self.pending[uid] = {"nama": nama, "email": email, "pubkey": None}
+
+    def approve(self, uid):
+        if uid in self.pending:
+            self.approved[uid] = self.pending.pop(uid)
             return True
-        err("RA: incomplete data")
         return False
-
-    def ask(self, uid, data, pub):
-        if self.ok(uid, data):
-            return self.ca.issue(uid, pub)
-        return None
 
 class Cust:
     def __init__(self, uid):
@@ -101,259 +107,257 @@ class Cust:
         self.pub = self.priv.public_key()
         self.cert = None
 
-    def ask_cert(self, ra):
-        step(f"{self.id} \u2192 sending request to RA")
-        self.cert = ra.ask(self.id, {"nama": self.id, "email": f"{self.id}@kripto.id"}, self.pub)
-        if self.cert:
-            ok(f"{self.id} got certificate from CA")
-        return self.cert
+    def sign(self, message):
+        return self.priv.sign(message, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
 
-    def sign(self, m):
-        return self.priv.sign(m, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
-
-    def verify(self, m, s, p):
+    def verify(self, message, signature, pubkey):
         try:
-            p.verify(s, m, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
+            pubkey.verify(signature, message, padding.PSS(padding.MGF1(hashes.SHA256()), padding.PSS.MAX_LENGTH), hashes.SHA256())
             return True
         except:
             return False
 
-    def enc(self, m, p):
-        return p.encrypt(m, padding.OAEP(padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    def encrypt(self, message, pubkey):
+        return pubkey.encrypt(message, padding.OAEP(padding.MGF1(hashes.SHA256()), hashes.SHA256(), label=None))
 
-    def dec(self, c):
-        return self.priv.decrypt(c, padding.OAEP(padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    def decrypt(self, ciphertext):
+        return self.priv.decrypt(ciphertext, padding.OAEP(padding.MGF1(hashes.SHA256()), hashes.SHA256(), label=None))
 
 class Sim:
     def __init__(self):
         self.ca = None
         self.ra = None
-        self.c = {}
-        self.ct = None
-        self.sg = None
-        self.pmsg = b"PKI roleplay finished. All signatures verified."
-        self.psg = None
+        self.users = {}
+        self.signed_messages = {}
+        self.encrypted_messages = {}
+        self.public_announcements = {}
 
     def start(self):
         header("UAS KRIPTOGRAFI \u2022 PKI SIMULATOR")
-        print(f"{BOLD}{WHITE}   CA  \u2022  RA  \u2022  registered users{RESET}")
-        print(f"{CYAN}   Simple \u2022 Real crypto \u2022 Interactive{RESET}\n")
+        print(f"{BOLD}{WHITE}   CA  \u2022  RA  \u2022  Cust1 / Cust2 / Cust3{RESET}")
+        print(f"{CYAN}   Real Crypto \u2022 Role Play \u2022 Professional{RESET}\n")
 
-    def init(self):
-        header("INITIALIZE PKI")
-        section("CA Setup")
+    def init_pki(self):
+        header("CA + RA INITIALIZATION")
         self.ca = CA()
-        ok("CA ready (2048-bit RSA + root cert)")
-        section("RA Setup")
         self.ra = RA(self.ca)
-        ok("RA connected to CA \u2022 Repository live")
+        ok("CA created (RSA-2048 + Root Certificate)")
+        ok("RA connected to CA")
         close_box()
 
-    def reg(self):
-        if not self.ca:
-            err("Init first (option 1)")
+    def register_user(self):
+        header("REGISTER NEW USER")
+        uid = input("Username (e.g. yoga, agus, cust3): ").strip()
+        if uid in self.users:
+            warn(f"{uid} already exists")
             return
-        header("REGISTER USER")
-        uid = input("Enter username (e.g. yoga, agus, angel): ").strip()
-        if not uid:
-            err("Username cannot be empty")
-            return
-        if uid in self.c:
-            warn(f"{uid} already registered")
-            return
-        print(f"\n{BOLD}{CYAN}Registering {uid}{RESET}")
-        u = Cust(uid)
-        u.ask_cert(self.ra)
-        self.c[uid] = u
-        section("Status")
-        fp = get_fp(u.cert) if u.cert else "----"
-        print(f"  {uid:<6}  {'\u2713 OK' if u.cert else '....'}   {fp}")
+        nama = input("Full Name : ").strip() or uid
+        email = input("Email     : ").strip() or f"{uid}@kripto.id"
+        org = input("Organization: ").strip() or "UAS PKI Group"
+
+        user = Cust(uid)
+        self.users[uid] = user
+        self.ra.receive_request(uid, nama, email)
+
+        step(f"{uid} created key pair + sent request to RA")
+        ok(f"Request for '{uid}' is now PENDING in RA")
         close_box()
 
-    def stat(self):
-        header("REPOSITORY")
-        if not self.c:
-            warn("No users yet")
+    def ra_approve(self):
+        header("RA \u2014 APPROVE REQUESTS")
+        if not self.ra.pending:
+            warn("No pending requests")
             return
-        print(f"  User    Status     Fingerprint")
-        print("  " + "-"*50)
-        for user_id, c in self.c.items():
-            print(f"  {user_id:<6}  {'\u2713 Trusted' if c.cert else 'Pending'}   {get_fp(c.cert) if c.cert else 'N/A'}")
+        print("Pending Requests:")
+        for i, uid in enumerate(self.ra.pending.keys(), 1):
+            print(f"  {i}. {uid}")
+        choice = input("Choose number to approve: ").strip()
+        try:
+            uid = list(self.ra.pending.keys())[int(choice)-1]
+        except:
+            err("Invalid choice")
+            return
+
+        if self.ra.approve(uid):
+            ok(f"RA approved '{uid}' \u2192 ready for CA to issue certificate")
         close_box()
 
-    def secret(self):
-        if not self.c:
-            err("Register users first")
+    def ca_issue(self):
+        header("CA \u2014 ISSUE CERTIFICATES")
+        if not self.ra.approved:
+            warn("No approved requests")
             return
-        header("SECRET MESSAGE + SIGN")
-        print("Available users:", list(self.c.keys()))
+        print("Approved Requests:")
+        for i, uid in enumerate(self.ra.approved.keys(), 1):
+            print(f"  {i}. {uid}")
+        choice = input("Choose number to issue certificate: ").strip()
+        try:
+            uid = list(self.ra.approved.keys())[int(choice)-1]
+        except:
+            err("Invalid choice")
+            return
+
+        user = self.users.get(uid)
+        if user:
+            cert = self.ca.issue_cert(uid, user.pub)
+            user.cert = cert
+            self.ra.approved.pop(uid)
+            ok(f"Certificate issued for '{uid}'")
+            print(f"  Fingerprint: {get_fp(cert)}")
+        close_box()
+
+    def show_status(self):
+        header("SYSTEM STATUS")
+        print(f"{BOLD}CA Status:{RESET} {'Ready' if self.ca else 'Not initialized'}")
+        print(f"{BOLD}Registered Users:{RESET} {list(self.users.keys())}")
+        print(f"{BOLD}Pending RA Approval:{RESET} {list(self.ra.pending.keys()) if self.ra else []}")
+        print(f"{BOLD}Approved (waiting CA):{RESET} {list(self.ra.approved.keys()) if self.ra else []}")
+        print(f"{BOLD}Issued Certificates:{RESET}")
+        for uid, user in self.users.items():
+            if user.cert:
+                print(f"  \u2022 {uid:<8} \u2192 {get_fp(user.cert)}")
+        close_box()
+
+    def send_signed_secret(self):
+        header("SEND SIGNED SECRET MESSAGE")
+        print("Available users:", list(self.users.keys()))
         sender = input("Sender   : ").strip()
-        if sender not in self.c:
-            err("Sender not found")
+        receiver = input("Receiver : ").strip()
+        if sender not in self.users or receiver not in self.users:
+            err("User not found")
             return
         msg = input("Message  : ").encode()
-        c1 = self.c[sender]
-        section(sender)
-        step("Signing with private key...")
-        self.sg = c1.sign(msg)
-        ok("Signature ready (RSASSA-PSS)")
-        step("Encrypting for receiver...")
-        # For simplicity, encrypt to first other user or ask
-        receivers = [k for k in self.c if k != sender]
-        if not receivers:
-            err("No other user to send to")
-            return
-        recv_name = receivers[0] if len(receivers) == 1 else input(f"Receiver ({'/'.join(receivers)}): ").strip()
-        if recv_name not in self.c:
-            recv_name = receivers[0]
-        self.ct = c1.enc(msg, self.ca.pubkey(recv_name))
-        self.last_sender = sender
-        self.last_receiver = recv_name
-        ok(f"Encrypted message for {recv_name} ({len(self.ct)} bytes)")
+
+        s = self.users[sender]
+        sig = s.sign(msg)
+        ct = s.encrypt(msg, self.users[receiver].pub)
+
+        self.signed_messages[f"{sender}_to_{receiver}"] = {
+            "sender": sender, "receiver": receiver,
+            "ciphertext": ct, "signature": sig, "plaintext": msg
+        }
+        ok(f"Message signed by {sender} and encrypted for {receiver}")
         close_box()
 
-    def recv(self):
-        if not self.ct or not hasattr(self, 'last_receiver'):
-            err("No secret message sent yet")
+    def decrypt_and_verify(self):
+        header("DECRYPT & VERIFY SECRET MESSAGE")
+        keys = list(self.signed_messages.keys())
+        if not keys:
+            warn("No messages")
             return
-        header("DECRYPT & VERIFY")
-        receiver = self.last_receiver
-        if receiver not in self.c:
-            err("Receiver not found")
+        for i, k in enumerate(keys, 1):
+            print(f"  {i}. {k}")
+        choice = input("Choose message: ").strip()
+        try:
+            key = keys[int(choice)-1]
+        except:
+            err("Invalid")
             return
-        c2 = self.c[receiver]
-        section(receiver)
-        step("Decrypting...")
-        pt = c2.dec(self.ct)
-        ok(f"Message: {pt.decode()}")
-        if hasattr(self, 'last_sender') and self.last_sender in self.c:
-            step(f"Checking signature from {self.last_sender}...")
-            if c2.verify(pt, self.sg, self.ca.pubkey(self.last_sender)):
-                ok("Signature VALID \u2192 Authentic & intact")
-            else:
-                err("Signature INVALID")
+
+        data = self.signed_messages[key]
+        receiver = self.users[data["receiver"]]
+        plaintext = receiver.decrypt(data["ciphertext"])
+        valid = receiver.verify(plaintext, data["signature"], self.users[data["sender"]].pub)
+
+        if valid:
+            ok("Signature VALID + Decryption successful")
+            print(f"  Message: {plaintext.decode()}")
+        else:
+            err("Signature INVALID")
         close_box()
 
-    def pub(self):
-        if not self.c:
-            err("Register users first")
-            return
-        header("PUBLIC ANNOUNCEMENT")
-        print("Available users:", list(self.c.keys()))
+    def publish_announcement(self):
+        header("PUBLISH PUBLIC ANNOUNCEMENT")
+        print("Available users:", list(self.users.keys()))
         sender = input("Who publishes? : ").strip()
-        if sender not in self.c:
+        if sender not in self.users:
             err("User not found")
             return
-        c2 = self.c[sender]
-        section(sender)
-        step("Signing announcement...")
-        self.psg = c2.sign(self.pmsg)
-        ok("Announcement signed & published")
-        info(self.pmsg.decode())
-        self.last_pub_sender = sender
+        msg = input("Announcement: ").encode()
+        sig = self.users[sender].sign(msg)
+        self.public_announcements[sender] = {"message": msg, "signature": sig}
+        ok(f"Public announcement published by {sender}")
         close_box()
 
-    def vpub(self):
-        if not self.psg or not hasattr(self, 'last_pub_sender'):
-            err("No announcement yet")
+    def verify_announcement(self):
+        header("VERIFY PUBLIC ANNOUNCEMENT")
+        if not self.public_announcements:
+            warn("No announcements")
             return
-        header("VERIFY PUBLIC MSG")
-        print("Available users:", list(self.c.keys()))
-        verifier = input("Who verifies? : ").strip()
-        if verifier not in self.c:
-            err("User not found")
-            return
-        c = self.c[verifier]
-        step(f"{verifier} checking signature from {self.last_pub_sender}...")
-        if c.verify(self.pmsg, self.psg, self.ca.pubkey(self.last_pub_sender)):
-            ok(f"{verifier}: VALID")
-        else:
-            err(f"{verifier}: INVALID")
+        for sender, data in self.public_announcements.items():
+            print(f"\nAnnouncement from: {sender}")
+            for verifier_name, verifier in self.users.items():
+                if verifier.cert:
+                    valid = verifier.verify(data["message"], data["signature"], self.users[sender].pub)
+                    status = "VALID \u2713" if valid else "INVALID \u2717"
+                    print(f"  {verifier_name} verified: {status}")
         close_box()
 
-    def tamper(self):
-        if not self.sg or not hasattr(self, 'last_sender'):
-            err("Send secret first")
-            return
-        header("TAMPER TEST")
-        bad = b"Hacked message!!!"
-        c2 = self.c.get(self.last_receiver)
-        if not c2:
-            err("Receiver not found")
-            return
-        warn("Message was changed by attacker...")
-        if c2.verify(bad, self.sg, self.ca.pubkey(self.last_sender)):
-            err("Verification passed (bad)")
-        else:
-            ok("Verification FAILED \u2192 Tamper detected!")
-        close_box()
-
-    def full(self):
-        header("FULL RUN")
-        self.init()
-        input("Enter...")
-        self.reg()
-        input("Enter...")
-        self.secret()
-        input("Enter...")
-        self.recv()
-        input("Enter...")
-        self.pub()
-        input("Enter...")
-        self.vpub()
-        input("Enter...")
-        self.tamper()
-        header("DONE")
-        ok("All scenarios completed successfully")
+    def tamper_test(self):
+        header("TAMPER / NEGATIVE TEST")
+        print("1. Tamper signed message")
+        print("2. Tamper public announcement")
+        ch = input("Choose: ").strip()
+        if ch == "1":
+            if not self.signed_messages:
+                warn("No signed message yet")
+                return
+            key = list(self.signed_messages.keys())[0]
+            data = self.signed_messages[key]
+            receiver = self.users[data["receiver"]]
+            bad_msg = b"HACKED MESSAGE!!!"
+            valid = receiver.verify(bad_msg, data["signature"], self.users[data["sender"]].pub)
+            if not valid:
+                ok("Tamper detected! Signature INVALID on modified message")
+            else:
+                err("Unexpected: verification passed on tampered message")
         close_box()
 
     def menu(self):
         while True:
             self.start()
             print("  1. Init CA + RA")
-            print("  2. Register New User (one by one)")
-            print("  3. Show Status")
-            print("  4. Send Secret Message + Sign")
-            print("  5. Decrypt & Verify Secret")
-            print("  6. Publish Public Announcement")
-            print("  7. Verify Public Announcement")
-            print("  8. Tamper Detection Demo")
-            print("  9. Full Auto Demo")
+            print("  2. Register New User (manual)")
+            print("  3. RA \u2014 Approve Pending Requests")
+            print("  4. CA \u2014 Issue Certificates")
+            print("  5. Show Status / Repository")
+            print("  6. Cust \u2014 Send Signed Secret Message")
+            print("  7. Cust \u2014 Decrypt & Verify Secret")
+            print("  8. Cust \u2014 Publish Public Announcement")
+            print("  9. Cust \u2014 Verify Public Announcement")
+            print("  t. Tamper / Negative Test")
             print("  0. Exit")
             print()
-            ch = input("Choose: ").strip()
+            ch = input("Choose: ").strip().lower()
+
             if ch == "1":
-                self.init()
+                self.init_pki()
             elif ch == "2":
-                self.reg()
+                self.register_user()
             elif ch == "3":
-                self.stat()
+                self.ra_approve()
             elif ch == "4":
-                self.secret()
+                self.ca_issue()
             elif ch == "5":
-                self.recv()
+                self.show_status()
             elif ch == "6":
-                self.pub()
+                self.send_signed_secret()
             elif ch == "7":
-                self.vpub()
+                self.decrypt_and_verify()
             elif ch == "8":
-                self.tamper()
+                self.publish_announcement()
             elif ch == "9":
-                self.full()
+                self.verify_announcement()
+            elif ch == "t":
+                self.tamper_test()
             elif ch == "0":
-                header("THANKS")
-                print(f"{BOLD}{MAGENTA}")
-                print("     /\\_/\\     ")
-                print("    ( o.o )    ")
-                print("     > ^ <     ")
-                print(f"{RESET}")
-                print(f"{CYAN}   ngopi dulu...{RESET}")
-                print(f"{GREEN}All crypto is real (RSA-2048 + X.509).{RESET}")
+                header("THANKS FOR USING")
+                print(f"{CYAN}All cryptography operations are real (RSA-2048 + X.509).{RESET}")
                 close_box()
                 break
             else:
-                err("Invalid")
-            input("\nEnter to menu...")
+                err("Invalid choice")
+            input("\nPress Enter to continue...")
 
 if __name__ == "__main__":
     Sim().menu()
